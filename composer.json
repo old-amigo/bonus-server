@@ -11,10 +11,10 @@
     "ext-intl": "*",
     "psr/log": "^1.0",
     "monolog/monolog": "1.*",
-    "mesilov/bitrix24-php-sdk": "dev-master",
-    "symfony/http-foundation": "5.2.*",
-    "symfony/http-client": "5.2.*",
-    "symfony/console": "5.2.*"
+    "mesilov/bitrix24-php-sdk": "2.x-dev",
+    "symfony/http-foundation": "5.*",
+    "symfony/http-client": "5.*",
+    "symfony/console": "5.*"
   },
   "require-dev": {
     "phpstan/phpstan": "0.12.48",
