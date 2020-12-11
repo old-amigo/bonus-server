@@ -15,7 +15,7 @@ $log->pushProcessor(new \Monolog\Processor\WebProcessor());
 $log->pushProcessor(new \Monolog\Processor\IntrospectionProcessor());
 
 print('<pre>');
-var_dump('hello');
+var_dump('hello 1111111');
 
 $log->debug(
     'req',
