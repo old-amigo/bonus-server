@@ -86,3 +86,59 @@
 
 - `demo:contacts` – генерация тестовых клиентов
 - `demo:deals` – генерация тестовых сделок связанных с существующими клиентами 
+
+
+## Окружение разработчика
+
+### Symfony Local Web Server + ngrok
+1. Ставим [Symfony Local Web Server](https://symfony.com/doc/current/setup/symfony_server.html)
+2. Регистрируемся в [ngrok](https://ngrok.com/)
+3. Запускаем локальный сервер
+```
+symfony server:start 
+```
+ожидаемый вид в консоли:
+```
+mesilov@mesilov-local bonus-server % symfony server:start 
+Tailing Web Server log file (/Users/mesilov/.symfony/log/927571b35aeab65621b9252ae3bf591bd2158ebc.log)
+Tailing PHP-FPM log file (/Users/mesilov/.symfony/log/927571b35aeab65621b9252ae3bf591bd2158ebc/53fb8ec204547646acb3461995e4da5a54cc7575.log)
+                                                                                                                        
+ [OK] Web server listening                                                                                              
+      The Web server is using PHP FPM 7.4.2                                                                             
+      https://127.0.0.1:8001                                                                                            
+                                                                                                                        
+
+[Web Server ] Dec 11 10:48:34 |INFO   | PHP    listening path="/usr/local/Cellar/php/7.4.2/sbin/php-fpm" php="7.4.2" port=53487
+[PHP-FPM    ] Dec 11 10:48:34 |NOTICE | FPM    fpm is running, pid 13792 
+[PHP-FPM    ] Dec 11 10:48:34 |NOTICE | FPM    ready to handle connections 
+[Web Server ] Dec 11 10:49:00 |INFO   | SERVER GET  (200) / ip="127.0.0.1"
+[Web Server ] Dec 11 10:49:33 |INFO   | SERVER GET  (200) /?qqq=111 
+[Web Server ] Dec 11 10:57:18 |INFO   | SERVER GET  (200) / 
+[Web Server ] Dec 11 10:57:18 |INFO   | SERVER GET  (200) /favicon.ico 
+[Web Server ] Dec 11 11:00:56 |INFO   | SERVER GET  (200) /?qqq=111 
+```
+4. Убеждаемся, что файл index.php открывается из браузера и вы видите запрос в логах и браузере
+5. Стартуем ngrok с указанием того адреса, на котором запущен локальный веб-сервер
+```
+./ngrok http https://127.0.0.1:8001
+```
+ожидаемый вид в консоли:
+```
+ngrok by @inconshreveable                                                                                                                                                                     (Ctrl+C to quit)
+                                                                                                                                                                                                              
+Session Status                online                                                                                                                                                                          
+Account                       Maxim (Plan: Free)                                                                                                                                                              
+Version                       2.3.35                                                                                                                                                                          
+Region                        United States (us)                                                                                                                                                              
+Web Interface                 http://127.0.0.1:4040                                                                                                                                                           
+Forwarding                    http://d56e04bf0ef3.ngrok.io -> https://127.0.0.1:8001                                                                                                                          
+Forwarding                    https://d56e04bf0ef3.ngrok.io -> https://127.0.0.1:8001                                                                                                                         
+                                                                                                                                                                                                              
+Connections                   ttl     opn     rt1     rt5     p50     p90                                                                                                                                     
+                              1       2       0.00    0.00    300.86  300.86  
+```
+
+6. Пробуем открыть адрес `https://d56e04bf0ef3.ngrok.io` (**у вас он будет другой**) и видим тот же запрос. 
+Если нужна доп.информация, то можно посмотреть через веб-интерфейс ngrok
+   
+
