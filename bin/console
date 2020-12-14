@@ -4,6 +4,7 @@
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Rarus\Interns\BonusServer\Commands\DemoData\GenerateContactsCommand;
+use Rarus\Interns\BonusServer\Commands\DemoData\GenerateProductsCommand;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Dotenv\Dotenv;
@@ -48,4 +49,5 @@ $log->pushProcessor(new \Monolog\Processor\MemoryUsageProcessor(true, true));
 
 $application = new Application();
 $application->add(new GenerateContactsCommand($log));
+$application->add(new GenerateProductsCommand($log));
 $application->run($input);

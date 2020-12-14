@@ -127,10 +127,29 @@ mesilov@mesilov-local bonus-server %
 ```
 
 ### Генерация тестовых товаров
+Пример вызова
 
-не реализовано
+```
+mesilov@mesilov-local bonus-server % php bin/console generate:products --count=3 
+Генерация контактов в Битрикс24
+===============================
+домен для подключения: https://b24-ze7zs7.bitrix24.ru/rest/1/h7qqqzeetysfsl16/
+количество продуктов: 3
 
-### Генерация тестовых сделок
+Добавляем продукты…
+-------------------
+
+1 | product id: 3654
+2 | product id: 3656
+3 | product id: 3658
+batch query duration: 0.5 seconds
+                                                                                                                       
+ [OK] продукты успешно добавлены                                                                                        
+
+mesilov@mesilov-local bonus-server % 
+```
+
+### Генерация тестовых сделок с табличной частью
 
 не реализовано
 
