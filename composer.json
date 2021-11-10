@@ -5,7 +5,7 @@
     "process-timeout": 600
   },
   "require": {
-    "php": "7.4.*",
+    "php": "7.4.*|8.*",
     "ext-json": "*",
     "ext-curl": "*",
     "ext-intl": "*",
@@ -18,8 +18,8 @@
     "symfony/dotenv": "5.*"
   },
   "require-dev": {
-    "phpstan/phpstan": "0.12.48",
-    "roave/security-advisories": "dev-master",
+    "phpstan/phpstan": "1.*",
+    "roave/security-advisories": "dev-latest",
     "phpunit/phpunit": "9.5.*",
     "symfony/debug-bundle": "5.*"
   },
