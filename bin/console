@@ -3,9 +3,7 @@
 
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
-use Rarus\Interns\BonusServer\Commands\DemoData\GenerateContactsCommand;
-use Rarus\Interns\BonusServer\Commands\DemoData\GenerateProductsCommand;
-use Rarus\Interns\BonusServer\Commands\DemoData\GenerateDealsCommand;
+use \Rarus\Interns\BonusServer\TrainingClassroom\Infrastructure\ConsoleCommands\DemoData;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Dotenv\Dotenv;
@@ -48,8 +46,12 @@ $log->pushHandler(new StreamHandler($_ENV['LOGS_FILE'], (int)$_ENV['LOGS_LEVEL']
 $log->pushProcessor(new \Monolog\Processor\MemoryUsageProcessor(true, true));
 
 
+$b24ApiClientServiceBuilder = (new \Rarus\Interns\BonusServer\TrainingClassroom\Services\Bitrix24ApiClientServiceBuilder(
+    (string)$_ENV['BITRIX24_WEBHOOK'],
+    $log))->build();
+
 $application = new Application();
-$application->add(new GenerateContactsCommand($log));
-$application->add(new GenerateProductsCommand($log));
-$application->add(new GenerateDealsCommand($log));
+$application->add(new DemoData\GenerateContactsCommand($b24ApiClientServiceBuilder, $log));
+$application->add(new DemoData\GenerateProductsCommand($b24ApiClientServiceBuilder, $log));
+$application->add(new DemoData\GenerateDealsCommand($b24ApiClientServiceBuilder, $log));
 $application->run($input);

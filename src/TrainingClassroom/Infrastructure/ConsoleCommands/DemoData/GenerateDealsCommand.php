@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Interns\BonusServer\Commands\DemoData;
+namespace Rarus\Interns\BonusServer\TrainingClassroom\Infrastructure\ConsoleCommands\DemoData;
 
-use Bitrix24\SDK\Core\Batch;
-use Bitrix24\SDK\Core\CoreBuilder;
 use Bitrix24\SDK\Core\Exceptions\BaseException;
-use Bitrix24\SDK\Core\Exceptions\InvalidArgumentException;
+use Bitrix24\SDK\Services\CRM\Deal\Result\DealCategoryItemResult;
+use Bitrix24\SDK\Services\CRM\Deal\Result\DealCategoryStageItemResult;
+use Bitrix24\SDK\Services\CRM\Product\Result\ProductItemResult;
 use Bitrix24\SDK\Services\ServiceBuilder;
 use Psr\Log\LoggerInterface;
-use Rarus\Interns\BonusServer\Commands\Exceptions\WrongBitrix24ConfigurationException;
+use Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -24,9 +24,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  */
 class GenerateDealsCommand extends Command
 {
-    /**
-     * @var LoggerInterface
-     */
+    protected ServiceBuilder $b24ApiClientServiceBuilder;
     protected LoggerInterface $logger;
     /**
      * @var string
@@ -40,6 +38,9 @@ class GenerateDealsCommand extends Command
     protected const STAGE_ORDER_DELIVERED = 'order_delivered';
     protected const STAGE_ORDER_CANCELLED = 'order_cancelled';
     protected const B24_MIN_ENTITIES_COUNT = 2;
+    /**
+     * @var array|string[]
+     */
     protected array $dealStages = [
         self::STAGE_NEW_ORDER,
         self::STAGE_BONUS_PAYMENT,
@@ -47,19 +48,18 @@ class GenerateDealsCommand extends Command
         self::STAGE_ORDER_CANCELLED,
     ];
 
-    protected array $b24Contacts;
-    protected array $b24Products;
-
     /**
      * GenerateDealsCommand constructor.
      *
-     * @param LoggerInterface $logger
+     * @param \Bitrix24\SDK\Services\ServiceBuilder $b24ApiClientServiceBuilder
+     * @param LoggerInterface                       $logger
      */
-    public function __construct(LoggerInterface $logger)
+    public function __construct(ServiceBuilder $b24ApiClientServiceBuilder, LoggerInterface $logger)
     {
         // best practices recommend to call the parent constructor first and
         // then set your own properties. That wouldn't work in this case
         // because configure() needs the properties set in this constructor
+        $this->b24ApiClientServiceBuilder = $b24ApiClientServiceBuilder;
         $this->logger = $logger;
         parent::__construct();
     }
@@ -76,7 +76,7 @@ class GenerateDealsCommand extends Command
                 self::START_STAGE,
                 null,
                 InputOption::VALUE_REQUIRED,
-                'на какую стадию передвинуть готовую сделку',
+                'на какую стадию передвинуть созданную сделку',
                 'new_order'
             )
             ->addOption(
@@ -98,8 +98,6 @@ class GenerateDealsCommand extends Command
     {
         $this->logger->debug('GenerateDealsCommand.start');
 
-        $b24WebhookUrl = (string)$_ENV['BITRIX24_WEBHOOK'];
-        $b24Domain = parse_url($b24WebhookUrl, PHP_URL_HOST);
         $newItemsCount = (int)$input->getOption(self::COUNT);
         $io = new SymfonyStyle($input, $output);
 
@@ -107,60 +105,69 @@ class GenerateDealsCommand extends Command
             [
                 '<info>Генерация сделок в Битрикс24</info>',
                 '<info>============================</info>',
-                sprintf('домен для подключения: %s', $b24Domain),
                 sprintf('количество добавляемых сделок: %s', $newItemsCount),
             ]
         );
 
         try {
-            $b24ServiceBuilder = $this->getServiceBuilder($b24WebhookUrl);
-            // получили контакты и продукты из Б24
-            $this->getContacts($b24ServiceBuilder);
-            $this->getProducts($b24ServiceBuilder);
-
             // предусловия
             // есть нужное направление сделок
-            $categories = $b24ServiceBuilder->getCRMScope()->dealCategory()
-                ->list([], [], [], 0)->getResponseData()->getResult()->getResultData();
+            $categories = $this->b24ApiClientServiceBuilder->getCRMScope()->dealCategory()
+                ->list([], [], [], 0)->getDealCategories();
             $this->assertDealsHasDeliveryCategory($output, $categories);
+
             // в направлении сделок есть служебные стадии
             $deliveryCategoryId = $this->getDeliveryCategoryId($categories);
-            $stages = $b24ServiceBuilder->getCRMScope()->dealCategoryStages()
-                ->list($deliveryCategoryId)->getResponseData()->getResult()->getResultData();
-            $this->assertDeliveryCategoryHasAllStages($output, $stages);
-            // есть продукты
-            $this->assertProductsExists($output, $this->b24Products);
-            // есть контакты
-            $this->assertContactsExists($output, $this->b24Contacts);
-            $output->writeln('<info>проверка портала успешно пройдена, можно генерировать сделки…</info>');
+            $deliveryCategoryStages = $this->b24ApiClientServiceBuilder->getCRMScope()->dealCategoryStage()
+                ->list($deliveryCategoryId)->getDealCategoryStages();
+            $this->assertDeliveryCategoryHasAllStages($output, $deliveryCategoryStages);
 
+            // есть контакты
+            $b24Contacts = $this->b24ApiClientServiceBuilder->getCRMScope()->contact()
+                ->list([], [], [], 0)->getContacts();
+            $this->assertContactsExists($output, $b24Contacts);
+
+            // есть продукты
+            $b24Products = $this->b24ApiClientServiceBuilder->getCRMScope()->product()
+                ->list([], [], [], 0)->getProducts();
+            $this->assertProductsExists($output, $b24Products);
+
+            $output->writeln('<info>проверка портала успешно пройдена, можно генерировать сделки…</info>');
 
             // генерим сделки
             for ($i = 0; $i < $newItemsCount; $i++) {
-                $newDeal = $this->generateDealDTO($deliveryCategoryId);
-                // добавили сделку в Б24
-                $dealId = $b24ServiceBuilder->getCRMScope()->deals()->add($newDeal)->getResponseData()->getResult()->getResultData()[0];
-                // сделали ТЧ для сделки на оснвании продуктов и перечитали сделку
-                $productRows = $this->generateProductRows($dealId);
-                $b24ServiceBuilder->getCRMScope()->dealProductRows()->set($dealId, $productRows);
-                $updatedDeal = $b24ServiceBuilder->getCRMScope()->deals()->get($dealId)->getResponseData()->getResult()->getResultData();
+                // добавили сделку для существующего контакта
+                $randomContactId = (int)array_column($b24Contacts, 'ID')[random_int(0, count($b24Contacts) - 1)];
+                $dealId = $this->b24ApiClientServiceBuilder->getCRMScope()->deal()->add(
+                    $this->generateNewDeal($deliveryCategoryId, $randomContactId)
+                )->getId();
+
+                // сгенерировали ТЧ для сделки на основании продуктов и перечитали сделку
+                $productRows = $this->generateProductRows($b24Products, $dealId);
+                $this->b24ApiClientServiceBuilder->getCRMScope()->dealProductRows()->set($dealId, $productRows);
+                $updatedDeal = $this->b24ApiClientServiceBuilder->getCRMScope()->deal()->get($dealId)->deal();
+
+                $b24Domain = 'ya.ru';
 
                 $output->writeln(
                     sprintf(
                         '%s | %s - %s | %s %s | %s',
                         $i + 1,
-                        $updatedDeal['ID'],
-                        $updatedDeal['TITLE'],
-                        $updatedDeal['OPPORTUNITY'],
-                        $updatedDeal['CURRENCY_ID'],
-                        sprintf('https://%s/crm/deal/details/%s/', $b24Domain, $updatedDeal['ID'])
+                        $updatedDeal->ID,
+                        $updatedDeal->TITLE,
+                        $updatedDeal->OPPORTUNITY,
+                        $updatedDeal->CURRENCY_ID,
+                        sprintf(
+                            '%s/crm/deal/details/%s/',
+                            $this->b24ApiClientServiceBuilder->getCRMScope()
+                                ->deal()->core->getApiClient()->getCredentials()->getDomainUrl(),
+                            $updatedDeal->ID
+                        )
                     )
                 );
 
-
-                // передвинули сделку на нужную стадию
-                // поддождали \ ушли на след стадию \
-
+                // передвинули сделку на нужную стадию ?
+                // поддождали \ ушли на след стадию \ ?
             }
 
             $io->success('сделки успешно созданы');
@@ -181,6 +188,8 @@ class GenerateDealsCommand extends Command
             $io->caution('ошибка при работе с Битрикс24');
             $io->text(
                 [
+                    '(╯°益°)╯彡┻━┻',
+                    '',
                     sprintf('%s', $exception->getMessage()),
                 ]
             );
@@ -189,6 +198,8 @@ class GenerateDealsCommand extends Command
             $io->caution('неизвестная ошибка');
             $io->text(
                 [
+                    '(╯°益°)╯彡┻━┻',
+                    '',
                     sprintf('message: %s', $exception->getMessage()),
                     sprintf('file %s:%s', $exception->getFile(), $exception->getLine()),
                     sprintf('trace %s', $exception->getTraceAsString()),
@@ -206,63 +217,64 @@ class GenerateDealsCommand extends Command
      * @return array
      * @throws \Exception
      */
-    protected function generateDealDTO(int $categoryId): array
+    protected function generateNewDeal(int $categoryId, int $b24ContactId): array
     {
-        $contactId = array_column($this->b24Contacts, 'ID')[random_int(0, count($this->b24Contacts) - 1)];
-
         return [
             'TITLE'       => sprintf('test-order-%s', time()),
-            'CONTACT_ID'  => $contactId,
-            'COMMENTS'    => sprintf('тестовый заказ для контакта %s', $contactId),
+            'CONTACT_ID'  => $b24ContactId,
+            'COMMENTS'    => sprintf('тестовый заказ для контакта %s', $b24ContactId),
             'CATEGORY_ID' => $categoryId,
         ];
     }
 
     /**
-     * @param int $dealId
+     * @param array $b24Products
+     * @param int   $dealId
      *
      * @return array
+     * @throws \Exception
      */
-    protected function generateProductRows(int $dealId): array
+    protected function generateProductRows(array $b24Products, int $dealId): array
     {
+        //todo унести в константы
         $productsCount = 2;
 
         $productRows = [];
         for ($i = 0; $i < $productsCount; $i++) {
-            $product = $this->b24Products[random_int(0, count($this->b24Products) - 1)];
-            $productRows[] = $this->generateProductRowDTO($dealId, $product);
+            $randomProduct = $b24Products[random_int(0, count($b24Products) - 1)];
+            $productRows[] = $this->generateProductRow($dealId, $randomProduct);
         }
-
 
         return $productRows;
     }
 
     /**
-     * @param int   $dealId
-     * @param array $product
+     * @param int               $dealId
+     * @param ProductItemResult $product
      *
      * @return array
      * @throws \Exception
      */
-    protected function generateProductRowDTO(int $dealId, array $product): array
+    protected function generateProductRow(int $dealId, ProductItemResult $product): array
     {
         return [
             'CUSTOMIZED'            => 'N',
             'DISCOUNT_RATE'         => 0,
             'DISCOUNT_SUM'          => 0,
             'DISCOUNT_TYPE_ID'      => 1,
-            'MEASURE_NAME'          => $product['MEASURE'],
-            'ORIGINAL_PRODUCT_NAME' => $product['NAME'],
+            'MEASURE_NAME'          => $product->MEASURE,
+            'ORIGINAL_PRODUCT_NAME' => $product->NAME,
             'OWNER_ID'              => $dealId,
             'OWNER_TYPE'            => 'D',
-            'PRICE'                 => $product['PRICE'],
-            'PRICE_ACCOUNT'         => $product['PRICE'],
-            'PRICE_BRUTTO'          => $product['PRICE'],
-            'PRICE_EXCLUSIVE'       => $product['PRICE'],
-            'PRICE_NETTO'           => $product['PRICE'],
-            'PRODUCT_DESCRIPTION'   => $product['DESCRIPTION'],
-            'PRODUCT_ID'            => $product['ID'],
-            'PRODUCT_NAME'          => $product['NAME'],
+            'PRICE'                 => $product->PRICE,
+            'PRICE_ACCOUNT'         => $product->PRICE,
+            'PRICE_BRUTTO'          => $product->PRICE,
+            'PRICE_EXCLUSIVE'       => $product->PRICE,
+            'PRICE_NETTO'           => $product->PRICE,
+            'PRODUCT_DESCRIPTION'   => $product->DESCRIPTION,
+            'PRODUCT_ID'            => $product->ID,
+            'PRODUCT_NAME'          => $product->NAME,
+            //todo унести в константы
             'QUANTITY'              => random_int(1, 5),
             'TAX_INCLUDED'          => 'Y',
             'TAX_RATE'              => '20',
@@ -270,44 +282,12 @@ class GenerateDealsCommand extends Command
     }
 
     /**
-     * @param ServiceBuilder $b24ServiceBuilder
+     * @param \Symfony\Component\Console\Output\OutputInterface                       $output
+     * @param array<int, \Bitrix24\SDK\Services\CRM\Contact\Result\ContactItemResult> $contacts
      *
-     * @throws BaseException
-     * @throws \Bitrix24\SDK\Core\Exceptions\TransportException
-     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
+     * @throws \Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException
      */
-    protected function getContacts(ServiceBuilder $b24ServiceBuilder): void
-    {
-        $this->b24Contacts = $b24ServiceBuilder->getCRMScope()->contacts()
-            ->list([], [], [], 0)->getResponseData()->getResult()->getResultData();
-    }
-
-    /**
-     * @param ServiceBuilder $b24ServiceBuilder
-     *
-     * @throws BaseException
-     * @throws \Bitrix24\SDK\Core\Exceptions\TransportException
-     * @throws \Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface
-     * @throws \Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface
-     */
-    protected function getProducts(ServiceBuilder $b24ServiceBuilder): void
-    {
-        $this->b24Products = $b24ServiceBuilder->getCRMScope()->products()
-            ->list([], [], [])->getResponseData()->getResult()->getResultData();
-    }
-
-    /**
-     * @param OutputInterface $output
-     * @param array           $contacts
-     *
-     * @throws WrongBitrix24ConfigurationException
-     */
-    protected function assertContactsExists(OutputInterface $output, array $contacts): void
+    private function assertContactsExists(OutputInterface $output, array $contacts): void
     {
         if ($output->isVerbose()) {
             $output->writeln(
@@ -317,13 +297,13 @@ class GenerateDealsCommand extends Command
                 ]
             );
             foreach ($contacts as $contact) {
-                $output->writeln(sprintf(' %s | %s %s', $contact['ID'], $contact['NAME'], $contact['LAST_NAME']));
+                $output->writeln(sprintf(' %s | %s %s', $contact->ID, $contact->NAME, $contact->LAST_NAME));
             }
         }
 
         if (count($contacts) < self::B24_MIN_ENTITIES_COUNT) {
             throw new WrongBitrix24ConfigurationException(
-                sprintf('в Битрикс24 должно быть минимум %s контакта' . self::B24_MIN_ENTITIES_COUNT),
+                sprintf('в Битрикс24 должно быть минимум %s контакта', self::B24_MIN_ENTITIES_COUNT),
                 0,
                 null,
                 'вызовите команду генерации контактов или добавьте их руками в CRM',
@@ -332,10 +312,10 @@ class GenerateDealsCommand extends Command
     }
 
     /**
-     * @param OutputInterface $output
-     * @param array           $products
+     * @param \Symfony\Component\Console\Output\OutputInterface                       $output
+     * @param array<int, \Bitrix24\SDK\Services\CRM\Product\Result\ProductItemResult> $products
      *
-     * @throws WrongBitrix24ConfigurationException
+     * @throws \Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException
      */
     protected function assertProductsExists(OutputInterface $output, array $products): void
     {
@@ -347,14 +327,13 @@ class GenerateDealsCommand extends Command
                 ]
             );
             foreach ($products as $product) {
-                $output->writeln(sprintf(' %s | %s - %s %s', $product['ID'], $product['NAME'], $product['PRICE'], $product['CURRENCY_ID']));
+                $output->writeln(sprintf(' %s | %s - %s %s', $product->ID, $product->NAME, $product->PRICE, $product->CURRENCY_ID));
             }
         }
 
-
         if (count($products) < self::B24_MIN_ENTITIES_COUNT) {
             throw new WrongBitrix24ConfigurationException(
-                sprintf('в Битрикс24 должно быть минимум %s продукта' . self::B24_MIN_ENTITIES_COUNT),
+                sprintf('в Битрикс24 должно быть минимум %s продукта', self::B24_MIN_ENTITIES_COUNT),
                 0,
                 null,
                 'вызовите команду генерации продуктов или добавьте их руками в товарный каталог Битрикс24 в CRM',
@@ -363,7 +342,7 @@ class GenerateDealsCommand extends Command
     }
 
     /**
-     * @param array $categories
+     * @param DealCategoryItemResult[] $categories
      *
      * @return int
      */
@@ -373,8 +352,8 @@ class GenerateDealsCommand extends Command
     }
 
     /**
-     * @param OutputInterface $output
-     * @param array           $stages
+     * @param OutputInterface               $output
+     * @param DealCategoryStageItemResult[] $stages
      *
      * @throws WrongBitrix24ConfigurationException
      */
@@ -388,7 +367,7 @@ class GenerateDealsCommand extends Command
                 ]
             );
             foreach ($stages as $stage) {
-                $output->writeln(sprintf(' %s - %s', $stage['STATUS_ID'], $stage['NAME']));
+                $output->writeln(sprintf(' %s - %s', $stage->STATUS_ID, $stage->NAME));
             }
         }
         $stages = array_values(array_column($stages, 'NAME', 'STATUS_ID'));
@@ -410,8 +389,8 @@ class GenerateDealsCommand extends Command
     }
 
     /**
-     * @param OutputInterface $output
-     * @param array           $categories
+     * @param OutputInterface          $output
+     * @param DealCategoryItemResult[] $categories
      *
      * @throws WrongBitrix24ConfigurationException
      */
@@ -425,10 +404,13 @@ class GenerateDealsCommand extends Command
                 ]
             );
             foreach ($categories as $category) {
-                $output->writeln(sprintf(' %s - %s', $category['ID'], $category['NAME']));
+                $output->writeln(sprintf(' %s - %s', $category->ID, $category->NAME));
             }
         }
-        $categoryNames = array_column($categories, 'NAME');
+        $categoryNames = [];
+        foreach ($categories as $category) {
+            $categoryNames[] = $category->NAME;
+        }
         if (in_array(self::B24_DEAL_CATEGORY_NAME, $categoryNames, true)) {
             return;
         }
@@ -442,23 +424,5 @@ class GenerateDealsCommand extends Command
                 self::B24_DEAL_CATEGORY_NAME
             )
         );
-    }
-
-    /**
-     * @param string $webhookUrl
-     *
-     * @return ServiceBuilder
-     * @throws InvalidArgumentException
-     */
-    protected function getServiceBuilder(string $webhookUrl): ServiceBuilder
-    {
-        $core = (new CoreBuilder())
-            ->withWebhookUrl($webhookUrl)
-            ->withLogger($this->logger)
-            ->build();
-        $batch = new Batch($core, $this->logger);
-
-
-        return new ServiceBuilder($core, $batch, $this->logger);
     }
 }

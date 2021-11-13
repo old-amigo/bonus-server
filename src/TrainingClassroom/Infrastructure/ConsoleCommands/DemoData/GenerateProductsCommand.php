@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Interns\BonusServer\Commands\DemoData;
+namespace Rarus\Interns\BonusServer\TrainingClassroom\Infrastructure\ConsoleCommands\DemoData;
 
 use Bitrix24\SDK\Core\Exceptions\BaseException;
+use Bitrix24\SDK\Services\ServiceBuilder;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -23,6 +24,7 @@ class GenerateProductsCommand extends Command
      * @var LoggerInterface
      */
     protected LoggerInterface $logger;
+    protected ServiceBuilder $b24ApiClientServiceBuilder;
     /**
      * @var string
      */
@@ -32,14 +34,16 @@ class GenerateProductsCommand extends Command
     /**
      * GenerateContactsCommand constructor.
      *
-     * @param LoggerInterface $logger
+     * @param \Bitrix24\SDK\Services\ServiceBuilder $b24ApiClientServiceBuilder
+     * @param LoggerInterface                       $logger
      */
-    public function __construct(LoggerInterface $logger)
+    public function __construct(ServiceBuilder $b24ApiClientServiceBuilder, LoggerInterface $logger)
     {
         // best practices recommend to call the parent constructor first and
         // then set your own properties. That wouldn't work in this case
         // because configure() needs the properties set in this constructor
         $this->logger = $logger;
+        $this->b24ApiClientServiceBuilder = $b24ApiClientServiceBuilder;
         parent::__construct();
     }
 
@@ -69,8 +73,6 @@ class GenerateProductsCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->logger->debug('GenerateProductsCommand.start');
-
-        $b24Webhook = (string)$_ENV['BITRIX24_WEBHOOK'];
         $newItemsCount = (int)$input->getOption(self::COUNT);
         $io = new SymfonyStyle($input, $output);
 
@@ -78,42 +80,24 @@ class GenerateProductsCommand extends Command
             [
                 '<info>Генерация продуктов в Битрикс24</info>',
                 '<info>===============================</info>',
-                sprintf('домен для подключения: %s', $b24Webhook),
                 sprintf('количество добавляемых продуктов: %s', $newItemsCount),
             ]
         );
 
         try {
-            $contacts = $this->generateNewItems($newItemsCount);
-            // собираем операции добавления батч-запросы
-            $core = (new \Bitrix24\SDK\Core\CoreBuilder())
-                ->withLogger($this->logger)
-                ->withWebhookUrl($b24Webhook)
-                ->build();
-            $batch = new \Bitrix24\SDK\Core\Batch($core, $this->logger);
-            foreach ($contacts as $cnt => $contact) {
-                $batch->addCommand('crm.product.add', $contact);
-            }
+            $products = $this->generateNewItems($newItemsCount);
             $io->section('Добавляем продукты…');
-
-            // исполняем запросы к Б24
-            $timeStart = microtime(true);
-            foreach ($batch->getTraversable(true) as $queryCnt => $queryResultData) {
-                /**
-                 * @var $queryResultData \Bitrix24\SDK\Core\Response\DTO\ResponseData
-                 */
+            foreach ($this->b24ApiClientServiceBuilder->getCRMScope()->product()->batch->add($products) as $queryCnt => $item) {
                 $io->writeln(
                     [
                         sprintf(
                             '%s | new product id: %s',
                             $queryCnt + 1,
-                            $queryResultData->getResult()->getResultData()[0]
+                            $item->getId()
                         ),
                     ]
                 );
             }
-            $timeEnd = microtime(true);
-            $io->writeln(sprintf('batch query duration: %s seconds', round($timeEnd - $timeStart, 2)) . PHP_EOL . PHP_EOL);
             $io->success('продукты успешно добавлены');
         } catch (BaseException $exception) {
             $io = new SymfonyStyle($input, $output);
@@ -148,19 +132,17 @@ class GenerateProductsCommand extends Command
         $items = [];
         for ($i = 0; $i < $itemsCount; $i++) {
             $items[] = [
-                'fields' => [
-                    'ACTIVE'          => 'Y',
-                    'PRICE'           => random_int(200, 2500),
-                    'NAME'            => sprintf('demo product - %s', random_int(5000, 100000)),
-                    'XML_ID'          => '',
-                    'CURRENCY_ID'     => 'RUB',
-                    'DETAIL_PICTURE'  => null,
-                    'PREVIEW_PICTURE' => null,
-                    'MEASURE'         => null,
-                    'SECTION_ID'      => null,
-                    'SORT'            => null,
-                    'VAT_ID'          => null,
-                ],
+                'ACTIVE'          => 'Y',
+                'PRICE'           => random_int(200, 2500),
+                'NAME'            => sprintf('demo product - %s', random_int(5000, 100000)),
+                'XML_ID'          => '',
+                'CURRENCY_ID'     => 'RUB',
+                'DETAIL_PICTURE'  => null,
+                'PREVIEW_PICTURE' => null,
+                'MEASURE'         => null,
+                'SECTION_ID'      => null,
+                'SORT'            => null,
+                'VAT_ID'          => null,
             ];
         }
 

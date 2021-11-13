@@ -2,15 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Interns\BonusServer\Commands\Exceptions;
+namespace Rarus\Interns\BonusServer\TrainingClassroom\Exceptions;
 
 use Exception;
 
-/**
- * Class WrongBitrix24ConfigurationException
- *
- * @package Rarus\Interns\BonusServer\Commands\Exceptions
- */
 class WrongBitrix24ConfigurationException extends Exception
 {
     protected ?string $advice;

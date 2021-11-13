@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Rarus\Interns\BonusServer\Commands\DemoData;
+namespace Rarus\Interns\BonusServer\TrainingClassroom\Infrastructure\ConsoleCommands\DemoData;
 
 use Bitrix24\SDK\Core\Exceptions\BaseException;
+use Bitrix24\SDK\Services\ServiceBuilder;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -12,17 +13,13 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-/**
- * Class GenerateContactsCommand
- *
- * @package Rarus\Interns\BonusServer\Commands\DemoData
- */
 class GenerateContactsCommand extends Command
 {
     /**
      * @var LoggerInterface
      */
     protected LoggerInterface $logger;
+    protected ServiceBuilder $b24ApiClientServiceBuilder;
     /**
      * @var string
      */
@@ -32,14 +29,16 @@ class GenerateContactsCommand extends Command
     /**
      * GenerateContactsCommand constructor.
      *
-     * @param LoggerInterface $logger
+     * @param \Bitrix24\SDK\Services\ServiceBuilder $b24ApiClientServiceBuilder
+     * @param LoggerInterface                       $logger
      */
-    public function __construct(LoggerInterface $logger)
+    public function __construct(ServiceBuilder $b24ApiClientServiceBuilder, LoggerInterface $logger)
     {
         // best practices recommend to call the parent constructor first and
         // then set your own properties. That wouldn't work in this case
         // because configure() needs the properties set in this constructor
         $this->logger = $logger;
+        $this->b24ApiClientServiceBuilder = $b24ApiClientServiceBuilder;
         parent::__construct();
     }
 
@@ -70,7 +69,6 @@ class GenerateContactsCommand extends Command
     {
         $this->logger->debug('GenerateContactsCommand.start');
 
-        $b24Webhook = (string)$_ENV['BITRIX24_WEBHOOK'];
         $contactsCount = (int)$input->getOption(self::CONTACTS_COUNT);
         $io = new SymfonyStyle($input, $output);
 
@@ -78,42 +76,25 @@ class GenerateContactsCommand extends Command
             [
                 '<info>Генерация контактов в Битрикс24</info>',
                 '<info>===============================</info>',
-                sprintf('домен для подключения: %s', $b24Webhook),
                 sprintf('количество контактов: %s', $contactsCount),
             ]
         );
 
         try {
-            $contacts = $this->generateContacts($contactsCount);
-            // собираем операции добавления батч-запросы
-            $core = (new \Bitrix24\SDK\Core\CoreBuilder())
-                ->withLogger($this->logger)
-                ->withWebhookUrl($b24Webhook)
-                ->build();
-            $batch = new \Bitrix24\SDK\Core\Batch($core, $this->logger);
-            foreach ($contacts as $cnt => $contact) {
-                $batch->addCommand('crm.contact.add', $contact);
-            }
             $io->section('Добавляем контакты…');
-
+            $contacts = $this->generateNewItems($contactsCount);
             // исполняем запросы к Б24
-            $timeStart = microtime(true);
-            foreach ($batch->getTraversable(true) as $queryCnt => $queryResultData) {
-                /**
-                 * @var $queryResultData \Bitrix24\SDK\Core\Response\DTO\ResponseData
-                 */
+            foreach ($this->b24ApiClientServiceBuilder->getCRMScope()->contact()->batch->add($contacts) as $cnt => $item) {
                 $io->writeln(
                     [
                         sprintf(
-                            '%s | contact id: %s',
-                            $queryCnt + 1,
-                            $queryResultData->getResult()->getResultData()[0]
+                            '%s | new contact id: %s',
+                            $cnt + 1,
+                            $item->getId()
                         ),
                     ]
                 );
             }
-            $timeEnd = microtime(true);
-            $io->writeln(sprintf('batch query duration: %s seconds', round($timeEnd - $timeStart, 2)) . PHP_EOL . PHP_EOL);
             $io->success('контакты успешно добавлены');
         } catch (BaseException $exception) {
             $io = new SymfonyStyle($input, $output);
@@ -142,16 +123,14 @@ class GenerateContactsCommand extends Command
      *
      * @return array<int, array> $contacts
      */
-    protected function generateContacts(int $contactsCount): array
+    protected function generateNewItems(int $contactsCount): array
     {
         $contacts = [];
         for ($i = 0; $i < $contactsCount; $i++) {
             $contacts[] = [
-                'fields' => [
-                    'NAME'        => sprintf('имя-%s', $i),
-                    'LAST_NAME'   => 'фамилия',
-                    'SECOND_NAME' => 'отчество',
-                ],
+                'NAME'        => sprintf('имя-%s', $i),
+                'LAST_NAME'   => 'фамилия',
+                'SECOND_NAME' => 'отчество',
             ];
         }
 
