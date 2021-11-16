@@ -11,7 +11,7 @@
     "ext-intl": "*",
     "psr/log": "^1.0",
     "monolog/monolog": "1.*",
-    "mesilov/bitrix24-php-sdk": "2.x-dev",
+    "mesilov/bitrix24-php-sdk": "2.0-alpha.3",
     "symfony/http-foundation": "5.*",
     "symfony/http-client": "5.*",
     "symfony/console": "5.*",
@@ -28,11 +28,16 @@
       "Rarus\\Interns\\BonusServer\\": "src/"
     }
   },
+  "autoload-dev": {
+    "psr-4": {
+      "Rarus\\Interns\\BonusServer\\Tests\\": "tests/"
+    }
+  },
   "prefer-stable": true,
   "minimum-stability": "dev",
   "scripts": {
-    "test": [
-      "phpunit --colors=always --verbose"
+    "phpunit-run-integration-tests": [
+      "phpunit --colors=always --verbose --testsuite integration_tests"
     ]
   }
 }

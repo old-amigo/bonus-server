@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Rarus\Interns\BonusServer\TrainingClassroom\Services;
 
 use Bitrix24\SDK\Services\ServiceBuilder;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 use Psr\Log\LoggerInterface;
 
 class Bitrix24ApiClientServiceBuilder
@@ -35,5 +37,22 @@ class Bitrix24ApiClientServiceBuilder
         $batch = new \Bitrix24\SDK\Core\Batch($core, $this->logger);
 
         return new ServiceBuilder($core, $batch, $this->logger);
+    }
+
+    /**
+     * @return \Bitrix24\SDK\Services\ServiceBuilder
+     * @throws \Bitrix24\SDK\Core\Exceptions\InvalidArgumentException
+     */
+    public static function getServiceBuilder(): ServiceBuilder
+    {
+        //todo накинуть проверок
+        $log = new Logger('demo-data-generator');
+        $log->pushHandler(new StreamHandler($_ENV['LOGS_FILE'], (int)$_ENV['LOGS_LEVEL']));
+        $log->pushProcessor(new \Monolog\Processor\MemoryUsageProcessor(true, true));
+
+        return (new self(
+            (string)$_ENV['BITRIX24_WEBHOOK'],
+            $log
+        ))->build();
     }
 }
