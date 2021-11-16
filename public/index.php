@@ -17,6 +17,8 @@ $log->pushProcessor(new \Monolog\Processor\IntrospectionProcessor());
 print('<pre>');
 var_dump('hello 1111111');
 
+var_dump($_REQUEST);
+
 $log->debug(
     'req',
     [

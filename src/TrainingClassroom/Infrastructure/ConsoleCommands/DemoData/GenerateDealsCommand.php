@@ -9,6 +9,7 @@ use Bitrix24\SDK\Services\CRM\Deal\Result\DealCategoryItemResult;
 use Bitrix24\SDK\Services\CRM\Deal\Result\DealCategoryStageItemResult;
 use Bitrix24\SDK\Services\CRM\Product\Result\ProductItemResult;
 use Bitrix24\SDK\Services\ServiceBuilder;
+use Exception;
 use Psr\Log\LoggerInterface;
 use Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException;
 use Symfony\Component\Console\Command\Command;
@@ -31,7 +32,8 @@ class GenerateDealsCommand extends Command
      */
     protected static $defaultName = 'generate:deals';
     protected const COUNT = 'count';
-    protected const START_STAGE = 'stage';
+    protected const START_STAGE = 'start_stage';
+    protected const TARGET_STAGE = 'target_stage';
     protected const B24_DEAL_CATEGORY_NAME = 'delivery';
     protected const STAGE_NEW_ORDER = 'new_order';
     protected const STAGE_BONUS_PAYMENT = 'bonus_payment';
@@ -76,15 +78,21 @@ class GenerateDealsCommand extends Command
                 self::START_STAGE,
                 null,
                 InputOption::VALUE_REQUIRED,
-                'на какую стадию передвинуть созданную сделку',
-                'new_order'
+                'в какой стадии создаётся сделка',
+                self::STAGE_NEW_ORDER
+            )
+            ->addOption(
+                self::TARGET_STAGE,
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'в какую стадию передвинуть сделку',
             )
             ->addOption(
                 self::COUNT,
                 null,
                 InputOption::VALUE_REQUIRED,
                 'сколько сделок добавить?',
-                5
+                1
             );
     }
 
@@ -99,6 +107,8 @@ class GenerateDealsCommand extends Command
         $this->logger->debug('GenerateDealsCommand.start');
 
         $newItemsCount = (int)$input->getOption(self::COUNT);
+        $b24StartStageName = (string)$input->getOption(self::START_STAGE);
+        $b24TargetStageName = (string)$input->getOption(self::TARGET_STAGE);
         $io = new SymfonyStyle($input, $output);
 
         $output->writeln(
@@ -106,6 +116,8 @@ class GenerateDealsCommand extends Command
                 '<info>Генерация сделок в Битрикс24</info>',
                 '<info>============================</info>',
                 sprintf('количество добавляемых сделок: %s', $newItemsCount),
+                sprintf('стартовая стадия: %s', $b24StartStageName),
+                sprintf('целевая стадия: %s', $b24TargetStageName),
             ]
         );
 
@@ -118,9 +130,9 @@ class GenerateDealsCommand extends Command
 
             // в направлении сделок есть служебные стадии
             $deliveryCategoryId = $this->getDeliveryCategoryId($categories);
-            $deliveryCategoryStages = $this->b24ApiClientServiceBuilder->getCRMScope()->dealCategoryStage()
+            $b24DeliveryCategoryStages = $this->b24ApiClientServiceBuilder->getCRMScope()->dealCategoryStage()
                 ->list($deliveryCategoryId)->getDealCategoryStages();
-            $this->assertDeliveryCategoryHasAllStages($output, $deliveryCategoryStages);
+            $this->assertDeliveryCategoryHasAllStages($output, $b24DeliveryCategoryStages);
 
             // есть контакты
             $b24Contacts = $this->b24ApiClientServiceBuilder->getCRMScope()->contact()
@@ -139,16 +151,27 @@ class GenerateDealsCommand extends Command
                 // добавили сделку для существующего контакта
                 $randomContactId = (int)array_column($b24Contacts, 'ID')[random_int(0, count($b24Contacts) - 1)];
                 $dealId = $this->b24ApiClientServiceBuilder->getCRMScope()->deal()->add(
-                    $this->generateNewDeal($deliveryCategoryId, $randomContactId)
+                    $this->generateNewDeal(
+                        $deliveryCategoryId,
+                        $randomContactId,
+                        $this->getDealStageByName($b24StartStageName, $b24DeliveryCategoryStages)->STATUS_ID
+                    )
                 )->getId();
 
                 // сгенерировали ТЧ для сделки на основании продуктов и перечитали сделку
                 $productRows = $this->generateProductRows($b24Products, $dealId);
                 $this->b24ApiClientServiceBuilder->getCRMScope()->dealProductRows()->set($dealId, $productRows);
+
+                // передвинули сделку на нужную стадию если надо
+                if ($b24TargetStageName !== null) {
+                    $this->b24ApiClientServiceBuilder->getCRMScope()->deal()->update(
+                        $dealId,
+                        [
+                            'STAGE_ID' => $this->getDealStageByName($b24TargetStageName, $b24DeliveryCategoryStages)->STATUS_ID,
+                        ], []
+                    );
+                }
                 $updatedDeal = $this->b24ApiClientServiceBuilder->getCRMScope()->deal()->get($dealId)->deal();
-
-                $b24Domain = 'ya.ru';
-
                 $output->writeln(
                     sprintf(
                         '%s | %s - %s | %s %s | %s',
@@ -165,11 +188,7 @@ class GenerateDealsCommand extends Command
                         )
                     )
                 );
-
-                // передвинули сделку на нужную стадию ?
-                // поддождали \ ушли на след стадию \ ?
             }
-
             $io->success('сделки успешно созданы');
         } catch (WrongBitrix24ConfigurationException $exception) {
             $io = new SymfonyStyle($input, $output);
@@ -212,18 +231,20 @@ class GenerateDealsCommand extends Command
     }
 
     /**
-     * @param int $categoryId
+     * @param int    $categoryId
+     * @param int    $b24ContactId
+     * @param string $b24StageId
      *
      * @return array
-     * @throws \Exception
      */
-    protected function generateNewDeal(int $categoryId, int $b24ContactId): array
+    protected function generateNewDeal(int $categoryId, int $b24ContactId, string $b24StageId): array
     {
         return [
             'TITLE'       => sprintf('test-order-%s', time()),
             'CONTACT_ID'  => $b24ContactId,
             'COMMENTS'    => sprintf('тестовый заказ для контакта %s', $b24ContactId),
             'CATEGORY_ID' => $categoryId,
+            'STAGE_ID'    => $b24StageId,
         ];
     }
 
@@ -306,7 +327,7 @@ class GenerateDealsCommand extends Command
                 sprintf('в Битрикс24 должно быть минимум %s контакта', self::B24_MIN_ENTITIES_COUNT),
                 0,
                 null,
-                'вызовите команду генерации контактов или добавьте их руками в CRM',
+                'вызовите команду генерации контактов «php bin/console generate:contacts» или добавьте их руками в CRM',
             );
         }
     }
@@ -336,7 +357,7 @@ class GenerateDealsCommand extends Command
                 sprintf('в Битрикс24 должно быть минимум %s продукта', self::B24_MIN_ENTITIES_COUNT),
                 0,
                 null,
-                'вызовите команду генерации продуктов или добавьте их руками в товарный каталог Битрикс24 в CRM',
+                'вызовите команду генерации продуктов «php bin/console generate:products» или добавьте их руками в товарный каталог Битрикс24 в CRM',
             );
         }
     }
@@ -386,6 +407,23 @@ class GenerateDealsCommand extends Command
                 )
             );
         }
+    }
+
+    /**
+     * @param string                        $b24DealStageName
+     * @param DealCategoryStageItemResult[] $b24DealStages
+     *
+     * @return \Bitrix24\SDK\Services\CRM\Deal\Result\DealCategoryStageItemResult
+     * @throws \Exception
+     */
+    protected function getDealStageByName(string $b24DealStageName, array $b24DealStages): DealCategoryStageItemResult
+    {
+        foreach ($b24DealStages as $stage) {
+            if ($stage->NAME === $b24DealStageName) {
+                return $stage;
+            }
+        }
+        throw new Exception(sprintf('стадия сделок по имени %s не найдена', $b24DealStageName));
     }
 
     /**
