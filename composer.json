@@ -11,7 +11,7 @@
     "ext-intl": "*",
     "psr/log": "^1.0",
     "monolog/monolog": "1.*",
-    "mesilov/bitrix24-php-sdk": "2.0-alpha.3",
+    "mesilov/bitrix24-php-sdk": "2.0-alpha.4",
     "symfony/http-foundation": "5.*",
     "symfony/http-client": "5.*",
     "symfony/console": "5.*",
