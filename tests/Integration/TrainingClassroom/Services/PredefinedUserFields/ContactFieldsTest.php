@@ -37,7 +37,7 @@ class ContactFieldsTest extends TestCase
         $contact = $contactService->get($contactService->add((new ContactBuilder())->build())->getId())->contact();
 
         // записали бонусы
-        $bonuses = new Money('313443', new Currency('RUB'));
+        $bonuses = new Money('313443', $this->conf->getDefaultBonusCurrency());
         $this->contactUserField->setBonusBalance($contact->ID, $bonuses);
 
         // получили баланс контакта из Б24
