@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Rarus\Interns\BonusServer\TrainingClassroom\Services;
 
+use Bitrix24\SDK\Core\Batch;
+use Bitrix24\SDK\Core\BulkItemsReader\BulkItemsReaderBuilder;
+use Bitrix24\SDK\Core\CoreBuilder;
 use Bitrix24\SDK\Services\ServiceBuilder;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -30,13 +33,22 @@ class Bitrix24ApiClientServiceBuilder
      */
     public function build(): ServiceBuilder
     {
-        $core = (new \Bitrix24\SDK\Core\CoreBuilder())
+        $core = (new CoreBuilder())
             ->withLogger($this->logger)
             ->withWebhookUrl($this->webhookUrl)
             ->build();
-        $batch = new \Bitrix24\SDK\Core\Batch($core, $this->logger);
+        $batch = new Batch($core, $this->logger);
 
-        return new ServiceBuilder($core, $batch, $this->logger);
+        return new ServiceBuilder(
+            $core,
+            $batch,
+            (new BulkItemsReaderBuilder(
+                $core,
+                $batch,
+                $this->logger
+            ))->build(),
+            $this->logger
+        );
     }
 
     /**
