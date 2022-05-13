@@ -3,7 +3,10 @@
 
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
-use \Rarus\Interns\BonusServer\TrainingClassroom\Infrastructure\ConsoleCommands\DemoData;
+use Rarus\Interns\BonusServer\TrainingClassroom\Infrastructure\ConsoleCommands\DemoData;
+use Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration;
+use Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedUserFields\ContactFields;
+use Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedUserFields\DealFields;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Dotenv\Dotenv;
@@ -36,7 +39,8 @@ if ($_SERVER['APP_DEBUG']) {
     umask(0000);
 
     if (class_exists(
-    Debug::class)) {
+        Debug::class
+    )) {
         Debug::enable();
     }
 }
@@ -48,10 +52,26 @@ $log->pushProcessor(new \Monolog\Processor\MemoryUsageProcessor(true, true));
 
 $b24ApiClientServiceBuilder = (new \Rarus\Interns\BonusServer\TrainingClassroom\Services\Bitrix24ApiClientServiceBuilder(
     (string)$_ENV['BITRIX24_WEBHOOK'],
-    $log))->build();
+    $log
+))->build();
 
 $application = new Application();
 $application->add(new DemoData\GenerateContactsCommand($b24ApiClientServiceBuilder, $log));
 $application->add(new DemoData\GenerateProductsCommand($b24ApiClientServiceBuilder, $log));
 $application->add(new DemoData\GenerateDealsCommand($b24ApiClientServiceBuilder, $log));
+$application->add(
+    new DemoData\InstallPredefinedUserFieldsCommand(
+        new ContactFields(
+            $b24ApiClientServiceBuilder->getCRMScope()->contactUserfield(),
+            $b24ApiClientServiceBuilder->getCRMScope()->contact(),
+            $log
+        ),
+        new DealFields(
+            $b24ApiClientServiceBuilder->getCRMScope()->dealUserfield(),
+            $b24ApiClientServiceBuilder->getCRMScope()->deal(),
+            $log
+        ),
+        $log
+    )
+);
 $application->run($input);

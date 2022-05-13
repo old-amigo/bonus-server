@@ -6,6 +6,7 @@ namespace Rarus\Interns\BonusServer\TrainingClassroom\Services;
 
 use Bitrix24\SDK\Services\CRM\Deal\Result\DealCategoryItemResult;
 use Bitrix24\SDK\Services\CRM\Deal\Result\DealCategoryStageItemResult;
+use Money\Currency;
 use Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException;
 
 class PredefinedConfiguration
@@ -14,6 +15,14 @@ class PredefinedConfiguration
     protected const STAGE_BONUS_PAYMENT = 'bonus_payment';
     protected const STAGE_ORDER_DELIVERED = 'order_delivered';
     protected const STAGE_ORDER_CANCELLED = 'order_cancelled';
+
+    /**
+     * @return \Money\Currency
+     */
+    public function getDefaultBonusCurrency(): Currency
+    {
+        return new Currency('RUB');
+    }
 
     /**
      * @return string
@@ -87,7 +96,6 @@ class PredefinedConfiguration
             sprintf('добавьте в направление сделок %s стадию %s', $this->getDefaultCategoryName(), $dealStageName)
         );
     }
-
 
     /**
      * @param DealCategoryItemResult[] $categories
