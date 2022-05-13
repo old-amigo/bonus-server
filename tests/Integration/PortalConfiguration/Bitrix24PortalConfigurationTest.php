@@ -7,15 +7,17 @@ namespace Rarus\Interns\BonusServer\Tests\Integration\PortalConfiguration;
 use Bitrix24\SDK\Services\ServiceBuilder;
 use PHPUnit\Framework\TestCase;
 use Rarus\Interns\BonusServer\TrainingClassroom\Services\Bitrix24ApiClientServiceBuilder;
+use Rarus\Interns\BonusServer\TrainingClassroom\Services\LoggerBuilder;
 use Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration;
+use Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedUserFields\ContactFields;
+use Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedUserFields\DealFields;
 
 class Bitrix24PortalConfigurationTest extends TestCase
 {
     private ServiceBuilder $serviceBuilder;
-    /**
-     * @var \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration
-     */
     private PredefinedConfiguration $conf;
+    private ContactFields $b24ContactFields;
+    private DealFields $b24DealFields;
 
     /**
      * @throws \Bitrix24\SDK\Core\Exceptions\BaseException
@@ -153,9 +155,43 @@ class Bitrix24PortalConfigurationTest extends TestCase
         );
     }
 
+    /**
+     * @throws \Bitrix24\SDK\Core\Exceptions\BaseException
+     * @throws \Bitrix24\SDK\Core\Exceptions\TransportException
+     * @throws \Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException
+     * @testdox У контакта созданы служебные пользовательские поля
+     */
+    public function testContactHasPredefinedUserFields(): void
+    {
+        $this->b24ContactFields->assertUserFieldsExists();
+        $this->assertTrue(true);
+    }
+
+    /**
+     * @throws \Bitrix24\SDK\Core\Exceptions\BaseException
+     * @throws \Bitrix24\SDK\Core\Exceptions\TransportException
+     * @throws \Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException
+     * @testdox У сделки созданы служебные пользовательские поля
+     */
+    public function testDealHasPredefinedUserFields(): void
+    {
+        $this->b24DealFields->assertUserFieldsExists();
+        $this->assertTrue(true);
+    }
+
     public function setUp(): void
     {
         $this->serviceBuilder = Bitrix24ApiClientServiceBuilder::getServiceBuilder();
         $this->conf = new PredefinedConfiguration();
+        $this->b24ContactFields = new ContactFields(
+            $this->serviceBuilder->getCRMScope()->contactUserfield(),
+            $this->serviceBuilder->getCRMScope()->contact(),
+            LoggerBuilder::getLogger()
+        );
+        $this->b24DealFields = new DealFields(
+            $this->serviceBuilder->getCRMScope()->dealUserfield(),
+            $this->serviceBuilder->getCRMScope()->deal(),
+            LoggerBuilder::getLogger()
+        );
     }
 }
