@@ -7,6 +7,7 @@ namespace Rarus\Interns\BonusServer\TrainingClassroom\Services;
 use Bitrix24\SDK\Services\CRM\Deal\Result\DealCategoryItemResult;
 use Bitrix24\SDK\Services\CRM\Deal\Result\DealCategoryStageItemResult;
 use Money\Currency;
+use MoneyPHP\Percentage\Percentage;
 use Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException;
 
 class PredefinedConfiguration
@@ -115,5 +116,25 @@ class PredefinedConfiguration
         }
 
         return (int)array_column($categories, 'ID', 'NAME')[$this->getDefaultCategoryName()];
+    }
+
+    /**
+     * Дефолтный процент начисления бонусов от успешной сделки
+     *
+     * @return \MoneyPHP\Percentage\Percentage
+     */
+    public function getDefaultBonusAccrualPercentage(): Percentage
+    {
+        return new Percentage($_ENV['DEFAULT_BONUS_ACCRUAL_PERCENTAGE']);
+    }
+
+    /**
+     * Дефолтный процент максимально-возможной частичной оплаты сделки бонусами
+     *
+     * @return \MoneyPHP\Percentage\Percentage
+     */
+    public function getDefaultBonusMaximumPaymentPercentage(): Percentage
+    {
+        return new Percentage($_ENV['DEFAULT_BONUS_ACCRUAL_PERCENTAGE']);
     }
 }

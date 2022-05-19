@@ -179,6 +179,26 @@ class Bitrix24PortalConfigurationTest extends TestCase
         $this->assertTrue(true);
     }
 
+    /**
+     * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration::getDefaultBonusAccrualPercentage
+     * @testdox Дефолтный процент начисления бонусов от успешной сделки
+     */
+    public function testDefaultBonusAccrualPercentageExists(): void
+    {
+        $this->conf->getDefaultBonusAccrualPercentage();
+        $this->assertTrue(true);
+    }
+
+    /**
+     * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration::getDefaultBonusAccrualPercentage
+     * @testdox Дефолтный процент максимально-возможной частичной оплаты сделки бонусами
+     */
+    public function testDefaultBonusMaximumPaymentPercentage(): void
+    {
+        $this->conf->getDefaultBonusMaximumPaymentPercentage();
+        $this->assertTrue(true);
+    }
+
     public function setUp(): void
     {
         $this->serviceBuilder = Bitrix24ApiClientServiceBuilder::getServiceBuilder();
