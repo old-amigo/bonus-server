@@ -73,7 +73,7 @@ class Bitrix24PortalConfigurationTest extends TestCase
     {
         $this->assertGreaterThanOrEqual(
             1,
-            $this->conf->getDealCategoryId(
+            $this->conf->getDealDeliveryCategoryId(
                 $this->serviceBuilder->getCRMScope()->dealCategory()->list([], [], [], 1)->getDealCategories()
             )
         );
@@ -90,7 +90,7 @@ class Bitrix24PortalConfigurationTest extends TestCase
         $this->assertNotEmpty(
             $this->conf->getDealStageNewOrderStatusId(
                 $this->serviceBuilder->getCRMScope()->dealCategoryStage()->list(
-                    $this->conf->getDealCategoryId(
+                    $this->conf->getDealDeliveryCategoryId(
                         $this->serviceBuilder->getCRMScope()->dealCategory()->list([], [], [], 1)->getDealCategories()
                     )
                 )->getDealCategoryStages()
@@ -109,7 +109,7 @@ class Bitrix24PortalConfigurationTest extends TestCase
         $this->assertNotEmpty(
             $this->conf->getDealStageBonusPaymentStatusId(
                 $this->serviceBuilder->getCRMScope()->dealCategoryStage()->list(
-                    $this->conf->getDealCategoryId(
+                    $this->conf->getDealDeliveryCategoryId(
                         $this->serviceBuilder->getCRMScope()->dealCategory()->list([], [], [], 1)->getDealCategories()
                     )
                 )->getDealCategoryStages()
@@ -128,7 +128,7 @@ class Bitrix24PortalConfigurationTest extends TestCase
         $this->assertNotEmpty(
             $this->conf->getDealStageOrderDeliveredStatusId(
                 $this->serviceBuilder->getCRMScope()->dealCategoryStage()->list(
-                    $this->conf->getDealCategoryId(
+                    $this->conf->getDealDeliveryCategoryId(
                         $this->serviceBuilder->getCRMScope()->dealCategory()->list([], [], [], 1)->getDealCategories()
                     )
                 )->getDealCategoryStages()
@@ -147,7 +147,7 @@ class Bitrix24PortalConfigurationTest extends TestCase
         $this->assertNotEmpty(
             $this->conf->getDealStageOrderCancelledStatusId(
                 $this->serviceBuilder->getCRMScope()->dealCategoryStage()->list(
-                    $this->conf->getDealCategoryId(
+                    $this->conf->getDealDeliveryCategoryId(
                         $this->serviceBuilder->getCRMScope()->dealCategory()->list([], [], [], 1)->getDealCategories()
                     )
                 )->getDealCategoryStages()

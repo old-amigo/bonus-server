@@ -37,7 +37,7 @@ class ContactFieldsTest extends TestCase
         $contact = $contactService->get($contactService->add((new ContactBuilder())->build())->getId())->contact();
 
         // записали бонусы
-        $bonuses = new Money('313443', $this->conf->getDefaultBonusCurrency());
+        $bonuses = new Money('250', $this->conf->getDefaultBonusCurrency());
         $this->contactUserField->setBonusBalance($contact->ID, $bonuses);
 
         // получили баланс контакта из Б24
@@ -50,6 +50,8 @@ class ContactFieldsTest extends TestCase
         );
 
         $this->assertEquals($bonuses, $bonusBalance);
+
+        //todo убедиться, что копейки правильно сохраняем в double
     }
 
     public function setUp(): void

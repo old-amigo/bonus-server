@@ -26,6 +26,14 @@ class PredefinedConfiguration
     }
 
     /**
+     * @return int
+     */
+    public function getBonusProcessingWaitingTimeout(): int
+    {
+        return 3;
+    }
+
+    /**
      * @return string
      */
     public function getDefaultCategoryName(): string
@@ -104,7 +112,7 @@ class PredefinedConfiguration
      * @return int
      * @throws \Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException
      */
-    public function getDealCategoryId(array $categories): int
+    public function getDealDeliveryCategoryId(array $categories): int
     {
         if (!array_key_exists($this->getDefaultCategoryName(), array_column($categories, 'ID', 'NAME'))) {
             throw new WrongBitrix24ConfigurationException(
