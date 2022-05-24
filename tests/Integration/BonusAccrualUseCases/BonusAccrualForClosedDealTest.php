@@ -63,7 +63,7 @@ class BonusAccrualForClosedDealTest extends TestCase
         ))->build($newDealId, 5, $products);
         $this->serviceBuilder->getCRMScope()->dealProductRows()->set($newDealId, $productRows);
 
-        // убедились, что поле «начислено бонусов» пусто
+        // убедились, что поле «баланс бонусов» пусто
         $contact = $contactService->get($newContactId)->contact();
         $this->assertSame(
             $contact->getUserfieldByFieldName($this->contactUserField->getBonusBalanceUserFieldName()),

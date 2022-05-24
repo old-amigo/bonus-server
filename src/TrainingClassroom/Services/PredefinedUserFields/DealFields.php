@@ -100,7 +100,10 @@ class DealFields
 
         if (!in_array('UF_CRM_' . $this->getPayWithBonusesUserFieldName(), $currentUserFieldsNames, true)) {
             throw new WrongBitrix24ConfigurationException(
-                sprintf('predefined contact userfield %s not found', $this->getPayWithBonusesUserFieldName()),
+                sprintf(
+                    'predefined contact userfield %s not found, run CLI command «php bin/console install:predefined-userfields»',
+                    $this->getPayWithBonusesUserFieldName()
+                ),
                 0,
                 null,
                 'создайте поле вызвав в консоли команду php bin/console install:predefined-userfields'

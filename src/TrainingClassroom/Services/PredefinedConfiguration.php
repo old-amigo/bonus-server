@@ -6,7 +6,10 @@ namespace Rarus\Interns\BonusServer\TrainingClassroom\Services;
 
 use Bitrix24\SDK\Services\CRM\Deal\Result\DealCategoryItemResult;
 use Bitrix24\SDK\Services\CRM\Deal\Result\DealCategoryStageItemResult;
+use Money\Currencies\ISOCurrencies;
 use Money\Currency;
+use Money\Money;
+use Money\Parser\DecimalMoneyParser;
 use MoneyPHP\Percentage\Percentage;
 use Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException;
 
@@ -144,5 +147,25 @@ class PredefinedConfiguration
     public function getDefaultBonusMaximumPaymentPercentage(): Percentage
     {
         return new Percentage($_ENV['DEFAULT_BONUS_ACCRUAL_PERCENTAGE']);
+    }
+
+    /**
+     * Дефолтная сумма велком-бонуса для новых контактов
+     *
+     * @return \Money\Money
+     * @throws \Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException
+     */
+    public function getDefaultBonusWelcomeGift(): Money
+    {
+        if (!array_key_exists('DEFAULT_BONUS_WELCOME_GIFT_AMOUNT', $_ENV)) {
+            throw new WrongBitrix24ConfigurationException(
+                'в файле .env или .env.local не найден ключ DEFAULT_BONUS_WELCOME_GIFT_AMOUNT с суммой велком-бонусов для новых контактов'
+            );
+        }
+
+        return (new DecimalMoneyParser(new ISOCurrencies()))->parse(
+            $_ENV['DEFAULT_BONUS_WELCOME_GIFT_AMOUNT'],
+            $this->getDefaultBonusCurrency()
+        );
     }
 }
