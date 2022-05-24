@@ -213,10 +213,22 @@ class Bitrix24PortalConfigurationTest extends TestCase
      * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration::isBonusServerEmulationActive
      * @testdox В конфиге есть флаг эмуляции работы БС
      */
-    public function testIsBonusServerEmulationActive(): void
+    public function testFlagIsBonusServerEmulationExists(): void
     {
         $this->conf->isBonusServerEmulationActive();
         $this->assertTrue(true);
+    }
+
+    /**
+     * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration::isBonusServerEmulationActive
+     * @testdox В конфиге есть флаг эмуляции работы БС
+     */
+    public function testFlagIsBonusServerEmulationDisabled(): void
+    {
+        $this->assertFalse(
+            $this->conf->isBonusServerEmulationActive(),
+            'Для проверки работ стажёров флаг эмуляции бонусного сервера IS_BONUS_SERVER_EMULATION_ACTIVE в .env-файле должен быть выставлен в false'
+        );
     }
 
     public function setUp(): void

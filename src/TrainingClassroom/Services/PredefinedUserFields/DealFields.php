@@ -44,6 +44,16 @@ class DealFields
     }
 
     /**
+     * Списано бонусов в рамках частичной оплаты
+     *
+     * @return string
+     */
+    public function getDebitedBonusesUserFieldName(): string
+    {
+        return 'B_DEBITED';
+    }
+
+    /**
      * Начислено бонусов
      *
      * @return string
@@ -90,6 +100,24 @@ class DealFields
     }
 
     /**
+     * Записать значение в пользовательское поле «Списано бонусов»
+     *
+     * @param int          $b24DealId
+     * @param \Money\Money $bonusBalance
+     */
+    public function setDebitedBonuses(int $b24DealId, Money $bonusBalance): void
+    {
+        $this->dealService->update(
+            $b24DealId,
+            [
+                'UF_CRM_' . $this->getDebitedBonusesUserFieldName() => (new DecimalMoneyFormatter(new ISOCurrencies()))->format(
+                    $bonusBalance
+                ),
+            ]
+        );
+    }
+
+    /**
      * @throws \Bitrix24\SDK\Core\Exceptions\BaseException
      * @throws \Bitrix24\SDK\Core\Exceptions\TransportException
      * @throws \Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException
@@ -106,16 +134,31 @@ class DealFields
                 ),
                 0,
                 null,
-                'создайте поле вызвав в консоли команду php bin/console install:predefined-userfields'
+                'создайте поле вызвав в консоли команду «php bin/console install:predefined-userfields»'
             );
         }
 
         if (!in_array('UF_CRM_' . $this->getAccruedBonusesUserFieldName(), $currentUserFieldsNames, true)) {
             throw new WrongBitrix24ConfigurationException(
-                sprintf('predefined contact userfield %s not found', $this->getAccruedBonusesUserFieldName()),
+                sprintf(
+                    'predefined contact userfield %s not found, run CLI command «php bin/console install:predefined-userfields»',
+                    $this->getAccruedBonusesUserFieldName()
+                ),
                 0,
                 null,
-                'создайте поле вызвав в консоли команду php bin/console install:predefined-userfields'
+                'создайте поле вызвав в консоли команду «php bin/console install:predefined-userfields»'
+            );
+        }
+
+        if (!in_array('UF_CRM_' . $this->getDebitedBonusesUserFieldName(), $currentUserFieldsNames, true)) {
+            throw new WrongBitrix24ConfigurationException(
+                sprintf(
+                    'predefined contact userfield %s not found, run CLI command «php bin/console install:predefined-userfields»',
+                    $this->getDebitedBonusesUserFieldName()
+                ),
+                0,
+                null,
+                'создайте поле вызвав в консоли команду «php bin/console install:predefined-userfields»'
             );
         }
     }
@@ -159,6 +202,24 @@ class DealFields
                 ],
                 'USER_TYPE_ID'      => 'double',
                 'XML_ID'            => 'rarus_bs_accrued_bonuses',
+                'SHOW_IN_LIST'      => 'Y',
+                'SETTINGS'          => [
+                    'DEFAULT_VALUE' => '0.0',
+                    'PRECISION'     => 2,
+                ],
+            ],
+            [
+                'FIELD_NAME'        => $this->getDebitedBonusesUserFieldName(),
+                'EDIT_FORM_LABEL'   => [
+                    'ru' => 'Списано бонусов',
+                    'en' => 'Debited bonuses',
+                ],
+                'LIST_COLUMN_LABEL' => [
+                    'ru' => 'Списано бонусов',
+                    'en' => 'Debited bonuses',
+                ],
+                'USER_TYPE_ID'      => 'double',
+                'XML_ID'            => 'rarus_bs_debited_bonuses',
                 'SHOW_IN_LIST'      => 'Y',
                 'SETTINGS'          => [
                     'DEFAULT_VALUE' => '0.0',

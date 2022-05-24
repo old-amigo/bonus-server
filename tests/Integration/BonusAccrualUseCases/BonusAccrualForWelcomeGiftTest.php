@@ -164,8 +164,9 @@ class BonusAccrualForWelcomeGiftTest extends TestCase
 
         // убеждаемся, что повторного начисления велком-бонуса не произойдёт
         // создали вторую сделку и на стадии new_order
-        $secondDealId = $dealService->add((new DealBuilder())->build($dealDeliveryCategoryId, $newContactId, $dealNewOrderStageId))->getId(
-        );
+        $secondDealId = $dealService->add(
+            (new DealBuilder())->build($dealDeliveryCategoryId, $newContactId, $dealNewOrderStageId)
+        )->getId();
         $deal = $dealService->get($secondDealId)->deal();
 
         // перечитываем контакт и проверяем, что у него НЕ обновился баланс

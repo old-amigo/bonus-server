@@ -146,7 +146,7 @@ class PredefinedConfiguration
      */
     public function getDefaultBonusMaximumPaymentPercentage(): Percentage
     {
-        return new Percentage($_ENV['DEFAULT_BONUS_ACCRUAL_PERCENTAGE']);
+        return new Percentage($_ENV['DEFAULT_BONUS_MAXIMUM_PAYMENT_PERCENTAGE']);
     }
 
     /**

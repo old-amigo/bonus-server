@@ -29,6 +29,55 @@ class DealFieldsTest extends TestCase
     private DealCategoryQueries $b24DealCategoryQueries;
 
     /**
+     * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedUserFields\DealFields::setDebitedBonuses
+     * @throws \Bitrix24\SDK\Core\Exceptions\BaseException
+     * @throws \Bitrix24\SDK\Core\Exceptions\TransportException
+     * @throws \Bitrix24\SDK\Services\CRM\Userfield\Exceptions\UserfieldNotFoundException
+     * @testdox Предустановленное пользовательское поле контакта «К оплате бонусами» работает корректно
+     */
+    public function testSetDebitedBonuses(): void
+    {
+        $categories = $this->serviceBuilder->getCRMScope()->dealCategory()
+            ->list([], [], [], 0)->getDealCategories();
+        $deliveryCategoryId = $this->b24DealCategoryQueries->getDeliveryCategoryId($categories);
+
+        $b24DeliveryCategoryStages = $this->serviceBuilder->getCRMScope()->dealCategoryStage()
+            ->list($deliveryCategoryId)->getDealCategoryStages();
+        $decimalParser = new DecimalMoneyParser(new ISOCurrencies());
+
+        // добавили контакт
+        $contact = $this->serviceBuilder->getCRMScope()->contact()->get(
+            $this->serviceBuilder->getCRMScope()->contact()->add((new ContactBuilder())->build())->getId()
+        )->contact();
+        $b24Contacts = $this->serviceBuilder->getCRMScope()->contact()
+            ->list([], [], [], 0)->getContacts();
+        $randomContactId = (int)array_column($b24Contacts, 'ID')[random_int(0, count($b24Contacts) - 1)];
+
+        // создали сделку
+        $dealId = $this->serviceBuilder->getCRMScope()->deal()->add(
+            (new DealBuilder())->build(
+                $deliveryCategoryId,
+                $randomContactId,
+                $this->conf->getDealStageNewOrderStatusId($b24DeliveryCategoryStages),
+            )
+        )->getId();
+
+        // выставляем сколько бонусов было списано
+        $bonuses = new Money('313443', $this->conf->getDefaultBonusCurrency());
+        $this->dealUserField->setDebitedBonuses($dealId, $bonuses);
+
+        // убедились, что бонусы сохранились куда надо
+        $debitedBonuses = $decimalParser->parse(
+            $this->serviceBuilder->getCRMScope()->deal()->get($dealId)->deal()->getUserfieldByFieldName(
+                $this->dealUserField->getDebitedBonusesUserFieldName()
+            ),
+            $this->conf->getDefaultBonusCurrency()
+        );
+        $this->assertEquals($bonuses, $debitedBonuses);
+    }
+
+    /**
+     * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedUserFields\DealFields::setPayWithBonuses
      * @throws \Bitrix24\SDK\Core\Exceptions\BaseException
      * @throws \Bitrix24\SDK\Core\Exceptions\TransportException
      * @throws \Bitrix24\SDK\Services\CRM\Userfield\Exceptions\UserfieldNotFoundException
@@ -76,7 +125,7 @@ class DealFieldsTest extends TestCase
     }
 
     /**
-     * @throws \Bitrix24\SDK\Core\Exceptions\BaseException
+     * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedUserFields\DealFields::setAccruedBonuses
      * @throws \Bitrix24\SDK\Core\Exceptions\TransportException
      * @throws \Bitrix24\SDK\Services\CRM\Userfield\Exceptions\UserfieldNotFoundException
      * @testdox Предустановленное пользовательское поле контакта «К оплате бонусами» работает корректно
