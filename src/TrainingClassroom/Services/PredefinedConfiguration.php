@@ -168,4 +168,21 @@ class PredefinedConfiguration
             $this->getDefaultBonusCurrency()
         );
     }
+
+    /**
+     * Флаг эмуляции работы бонусного сервера, нужен для отладки интеграционных тестов
+     *
+     * @return bool
+     * @throws \Rarus\Interns\BonusServer\TrainingClassroom\Exceptions\WrongBitrix24ConfigurationException
+     */
+    public function isBonusServerEmulationActive(): bool
+    {
+        if (!array_key_exists('IS_BONUS_SERVER_EMULATION_ACTIVE', $_ENV)) {
+            throw new WrongBitrix24ConfigurationException(
+                'в файле .env или .env.local не найден ключ IS_BONUS_SERVER_EMULATION_ACTIVE c флагом эмуляции работы бонусного сервера'
+            );
+        }
+
+        return $_ENV['IS_BONUS_SERVER_EMULATION_ACTIVE'] === 'true';
+    }
 }
