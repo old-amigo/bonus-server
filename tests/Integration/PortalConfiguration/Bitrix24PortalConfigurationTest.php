@@ -220,6 +220,16 @@ class Bitrix24PortalConfigurationTest extends TestCase
     }
 
     /**
+     * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration::getBonusProcessingWaitingTimeout
+     * @testdox В конфиге есть задержка ожидания времени работы БС
+     */
+    public function testBonusProcessingWaitingTimeoutExists(): void
+    {
+        $this->conf->getBonusProcessingWaitingTimeout();
+        $this->assertTrue(true);
+    }
+
+    /**
      * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration::isBonusServerEmulationActive
      * @testdox В конфиге есть флаг эмуляции работы БС
      */

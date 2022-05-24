@@ -33,7 +33,13 @@ class PredefinedConfiguration
      */
     public function getBonusProcessingWaitingTimeout(): int
     {
-        return 3;
+        if (!array_key_exists('BONUS_PROCESSING_WAITING_TIMEOUT', $_ENV)) {
+            throw new WrongBitrix24ConfigurationException(
+                'в файле .env или .env.local не найден ключ BONUS_PROCESSING_WAITING_TIMEOUT со временем ожидания работы бонусного сервиса'
+            );
+        }
+
+        return (int)$_ENV['BONUS_PROCESSING_WAITING_TIMEOUT'];
     }
 
     /**
