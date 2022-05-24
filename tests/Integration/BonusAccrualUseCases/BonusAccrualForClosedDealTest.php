@@ -25,8 +25,8 @@ class BonusAccrualForClosedDealTest extends TestCase
 {
     private ServiceBuilder $serviceBuilder;
     private PredefinedConfiguration $conf;
-    private ContactFields $contactUserField;
-    private DealFields $dealFields;
+    private ContactFields $contactUserFields;
+    private DealFields $dealUserFields;
 
     /**
      * @throws \Bitrix24\SDK\Core\Exceptions\BaseException
@@ -45,6 +45,13 @@ class BonusAccrualForClosedDealTest extends TestCase
 
         // добавили контакт
         $newContactId = $contactService->add((new ContactBuilder())->build())->getId();
+        // убедились, что поле «баланс бонусов» пусто
+        $contact = $contactService->get($newContactId)->contact();
+        $this->assertSame(
+            $contact->getUserfieldByFieldName($this->contactUserFields->getBonusBalanceUserFieldName()),
+            '0',
+            sprintf('в поле %s должен быть 0', $this->contactUserFields->getBonusBalanceUserFieldName())
+        );
 
         // добавили сделку в категории «доставка» в стадии «новый заказ» связанную с контактом
         $dealDeliveryCategoryId = $this->conf->getDealDeliveryCategoryId(
@@ -53,7 +60,35 @@ class BonusAccrualForClosedDealTest extends TestCase
         $dealStages = $dealStageService->list($dealDeliveryCategoryId)->getDealCategoryStages();
         $dealNewOrderStageId = $this->conf->getDealStageNewOrderStatusId($dealStages);
         $dealCompletedStageId = $this->conf->getDealStageOrderDeliveredStatusId($dealStages);
+        // создали сделку и на стадии new_order
         $newDealId = $dealService->add((new DealBuilder())->build($dealDeliveryCategoryId, $newContactId, $dealNewOrderStageId))->getId();
+
+        // вот-тут сработал веб-хук к бонусному серверу и если есть, то начислился велком-бонус
+        // для отладки тестов прикидываемся бонус-сервером
+        if ($this->conf->isBonusServerEmulationActive()) {
+            $this->contactUserFields->setBonusBalance(
+                $newContactId,
+                $this->conf->getDefaultBonusWelcomeGift()
+            );
+        }
+        // на внутренний счёт клиента
+        // обновился суммарный баланс бонусов в пользовательском поле клиента
+        sleep($this->conf->getBonusProcessingWaitingTimeout());
+
+        // перечитываем контакт и проверяем, что у него обновился баланс
+        $contact = $contactService->get($newContactId)->contact();
+        $updatedBalance = $decimalParser->parse(
+            $contact->getUserfieldByFieldName($this->contactUserFields->getBonusBalanceUserFieldName()),
+            $this->conf->getDefaultBonusCurrency()
+        );
+        $this->assertTrue(
+            $updatedBalance->equals($this->conf->getDefaultBonusWelcomeGift()),
+            sprintf(
+                'баланс контакта %s не совпадает с ожидаемым балансом %s после начисления велком-бонуса, он должен начисляться для новых контактов связанных со сделками на стадии new_order',
+                $decimalFormatter->format($updatedBalance),
+                $decimalFormatter->format($this->conf->getDefaultBonusWelcomeGift())
+            )
+        );
 
         // добавили табличную часть к сделке на основании существующих продуктов
         $products = $this->serviceBuilder->getCRMScope()->product()
@@ -62,14 +97,6 @@ class BonusAccrualForClosedDealTest extends TestCase
             new ProductRowBuilder()
         ))->build($newDealId, 5, $products);
         $this->serviceBuilder->getCRMScope()->dealProductRows()->set($newDealId, $productRows);
-
-        // убедились, что поле «баланс бонусов» пусто
-        $contact = $contactService->get($newContactId)->contact();
-        $this->assertSame(
-            $contact->getUserfieldByFieldName($this->contactUserField->getBonusBalanceUserFieldName()),
-            '0',
-            sprintf('в поле %s должен быть 0', $this->contactUserField->getBonusBalanceUserFieldName())
-        );
 
         // рассчитали сумму бонусного начисления
         $deal = $dealService->get($newDealId)->deal();
@@ -92,16 +119,30 @@ class BonusAccrualForClosedDealTest extends TestCase
         // 3. фиксирует в сделке в пользовательском поле сумму начисленных бонусов по этой сделке
         sleep($this->conf->getBonusProcessingWaitingTimeout());
 
-        // перечитываем контакт и проверяем, что у него обновился баланс
+        // для отладки тестов прикидываемся бонус-сервером
+        if ($this->conf->isBonusServerEmulationActive()) {
+            // выставляем для контакта ожидаемый балнанс бонусов
+            $this->contactUserFields->setBonusBalance(
+                $newContactId,
+                $this->conf->getDefaultBonusWelcomeGift()->add($calculatedBonus)
+            );
+            // выставляем в сделке ожидаемый баланс бонусов
+            $this->dealUserFields->setAccruedBonuses(
+                $newDealId,
+                $calculatedBonus
+            );
+        }
+
+        // перечитываем контакт и проверяем, что у него обновился баланс: начисление со сделки + велком-бонус
         $contact = $contactService->get($newContactId)->contact();
-        $updatedBalance = $decimalParser->parse(
-            $contact->getUserfieldByFieldName($this->contactUserField->getBonusBalanceUserFieldName()),
+        $contactFinalBalance = $decimalParser->parse(
+            $contact->getUserfieldByFieldName($this->contactUserFields->getBonusBalanceUserFieldName()),
             $this->conf->getDefaultBonusCurrency()
         );
         $this->assertTrue(
-            $calculatedBonus->equals($updatedBalance),
+            $calculatedBonus->equals($contactFinalBalance->subtract($this->conf->getDefaultBonusWelcomeGift())),
             sprintf(
-                'для сделки %s - %s на сумму %s не совпадает рассчётная сумма начисленных бонусов %s по проценту %s с текущей %s из поля контакта с id %s связанного со сделкой',
+                'для сделки %s - %s на сумму %s не совпадает рассчётная сумма начисленных бонусов %s по проценту %s с текущей %s из поля контакта с id %s связанного со сделкой за вычетом велком-бонуса',
                 $deal->TITLE,
                 $deal->ID,
                 $decimalFormatter->format($dealAmount),
@@ -111,19 +152,36 @@ class BonusAccrualForClosedDealTest extends TestCase
                 $deal->CONTACT_ID
             )
         );
-        //todo перечитываем сделку и проверяем, что в сделке проапдейтили поле «начислено бонусов»
+
+        // перечитываем сделку и проверяем, что в сделке проапдейтили поле «начислено бонусов»
+        $deal = $dealService->get($newDealId)->deal();
+        $dealAccuredBonuses = $decimalParser->parse(
+            $deal->getUserfieldByFieldName($this->dealUserFields->getAccruedBonusesUserFieldName()),
+            $this->conf->getDefaultBonusCurrency()
+        );
+        $this->assertTrue(
+            $dealAccuredBonuses->equals($calculatedBonus),
+            sprintf(
+                'для сделки %s - %s на сумму %s в поле «Начислено бонусов» сумма %s начисленных бонусов не совпадает с рассчётным количеством бонусов %s',
+                $deal->TITLE,
+                $deal->ID,
+                $deal->OPPORTUNITY,
+                $decimalFormatter->format($dealAccuredBonuses),
+                $decimalFormatter->format($calculatedBonus)
+            )
+        );
     }
 
     public function setUp(): void
     {
         $this->serviceBuilder = Bitrix24ApiClientServiceBuilder::getServiceBuilder();
         $this->conf = new PredefinedConfiguration();
-        $this->contactUserField = new ContactFields(
+        $this->contactUserFields = new ContactFields(
             $this->serviceBuilder->getCRMScope()->contactUserfield(),
             $this->serviceBuilder->getCRMScope()->contact(),
             LoggerBuilder::getLogger()
         );
-        $this->dealFields = new DealFields(
+        $this->dealUserFields = new DealFields(
             $this->serviceBuilder->getCRMScope()->dealUserfield(),
             $this->serviceBuilder->getCRMScope()->deal(),
             LoggerBuilder::getLogger()
