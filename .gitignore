@@ -1,3 +1,5 @@
 /.idea/*
 vendor/
 logs/
+/.phpunit.result.cache
+/db/bs_db.sqlite3
