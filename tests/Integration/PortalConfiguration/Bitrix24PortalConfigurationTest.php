@@ -42,10 +42,10 @@ class Bitrix24PortalConfigurationTest extends TestCase
      */
     public function testBitrix24CrmHasContacts(): void
     {
-        $this->assertGreaterThan(
+        $this->assertGreaterThanOrEqual(
             1,
             $this->serviceBuilder->getCRMScope()->contact()->countByFilter([]),
-            'В Битрикс24 нет контактов, требуется их добавить'
+            'В Битрикс24 нет контактов, требуется их добавить, выполните в консоли команду «php bin/console generate:contacts» '
         );
     }
 
@@ -59,7 +59,7 @@ class Bitrix24PortalConfigurationTest extends TestCase
         $this->assertGreaterThan(
             1,
             $this->serviceBuilder->getCRMScope()->product()->countByFilter(),
-            'В Битрикс24 нет товаров, требуется их добавить в товарный каталог'
+            'В Битрикс24 нет товаров, требуется их добавить в товарный каталог, выполните в консоли команду «php bin/console  generate:products»'
         );
     }
 
@@ -193,10 +193,52 @@ class Bitrix24PortalConfigurationTest extends TestCase
      * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration::getDefaultBonusAccrualPercentage
      * @testdox Дефолтный процент максимально-возможной частичной оплаты сделки бонусами
      */
-    public function testDefaultBonusMaximumPaymentPercentage(): void
+    public function testDefaultBonusMaximumPaymentPercentageExists(): void
     {
         $this->conf->getDefaultBonusMaximumPaymentPercentage();
         $this->assertTrue(true);
+    }
+
+    /**
+     * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration::getDefaultBonusWelcomeGift
+     * @testdox Дефолтный размер велком-бонуса для новых контактов задан
+     */
+    public function testDefaultBonusWelcomeGiftExists(): void
+    {
+        $this->conf->getDefaultBonusWelcomeGift();
+        $this->assertTrue(true);
+    }
+
+    /**
+     * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration::isBonusServerEmulationActive
+     * @testdox В конфиге есть флаг эмуляции работы БС
+     */
+    public function testFlagIsBonusServerEmulationExists(): void
+    {
+        $this->conf->isBonusServerEmulationActive();
+        $this->assertTrue(true);
+    }
+
+    /**
+     * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration::getBonusProcessingWaitingTimeout
+     * @testdox В конфиге есть задержка ожидания времени работы БС
+     */
+    public function testBonusProcessingWaitingTimeoutExists(): void
+    {
+        $this->conf->getBonusProcessingWaitingTimeout();
+        $this->assertTrue(true);
+    }
+
+    /**
+     * @covers  \Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration::isBonusServerEmulationActive
+     * @testdox В конфиге есть флаг эмуляции работы БС
+     */
+    public function testFlagIsBonusServerEmulationDisabled(): void
+    {
+        $this->assertFalse(
+            $this->conf->isBonusServerEmulationActive(),
+            'Для проверки работ стажёров флаг эмуляции бонусного сервера IS_BONUS_SERVER_EMULATION_ACTIVE в .env-файле должен быть выставлен в false'
+        );
     }
 
     public function setUp(): void

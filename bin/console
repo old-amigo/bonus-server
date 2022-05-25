@@ -4,6 +4,7 @@
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Rarus\Interns\BonusServer\TrainingClassroom\Infrastructure\ConsoleCommands\DemoData;
+use Rarus\Interns\BonusServer\TrainingClassroom\Services\DemoDataBuilders\ProductBuilder;
 use Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedConfiguration;
 use Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedUserFields\ContactFields;
 use Rarus\Interns\BonusServer\TrainingClassroom\Services\PredefinedUserFields\DealFields;
@@ -55,9 +56,18 @@ $b24ApiClientServiceBuilder = (new \Rarus\Interns\BonusServer\TrainingClassroom\
     $log
 ))->build();
 
+$conf = new PredefinedConfiguration();
+
 $application = new Application();
 $application->add(new DemoData\GenerateContactsCommand($b24ApiClientServiceBuilder, $log));
-$application->add(new DemoData\GenerateProductsCommand($b24ApiClientServiceBuilder, $log));
+$application->add(
+    new DemoData\GenerateProductsCommand(
+        $b24ApiClientServiceBuilder,
+        new ProductBuilder($conf->getDefaultBonusCurrency()),
+        $conf,
+        $log
+    )
+);
 $application->add(new DemoData\GenerateDealsCommand($b24ApiClientServiceBuilder, $log));
 $application->add(
     new DemoData\InstallPredefinedUserFieldsCommand(

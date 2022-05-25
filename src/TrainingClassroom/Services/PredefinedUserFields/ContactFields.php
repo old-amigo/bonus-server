@@ -69,7 +69,10 @@ class ContactFields
         $currentUserFieldsNames = array_column($this->contactUserfield->list([], [])->getUserfields(), 'FIELD_NAME');
         if (!in_array('UF_CRM_' . $this->getBonusBalanceUserFieldName(), $currentUserFieldsNames, true)) {
             throw new WrongBitrix24ConfigurationException(
-                sprintf('predefined contact userfield %s not found', $this->getBonusBalanceUserFieldName()),
+                sprintf(
+                    'predefined contact userfield %s not found, run CLI command «php bin/console install:predefined-userfields»',
+                    $this->getBonusBalanceUserFieldName()
+                ),
                 0,
                 null,
                 'создайте поле вызвав в консоли команду php bin/console install:predefined-userfields'
