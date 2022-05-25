@@ -26,7 +26,7 @@ class UsersSeederFromBX24 extends AbstractSeed
             $data[] = [
                 'name' => $user->NAME . ' ' . $user->SECOND_NAME . ' ' . $user->LAST_NAME,
                 'bx24_id' => $user->ID,
-                'bonuses' => $_ENV['WELCOME_BONUS_BALANCE']
+                'bonuses' => $_ENV['DEFAULT_BONUS_WELCOME_GIFT_AMOUNT']
             ];
         }
 
