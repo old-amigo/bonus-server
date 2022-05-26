@@ -5,16 +5,14 @@ namespace Rarus\Interns\BonusServer\Controllers;
 use Doctrine\DBAL;
 use Money\Money;
 use Monolog\Logger;
+use Rarus\Interns\BonusServer\Model\Configuration;
 
 
 class User
 {
     public static function getUsers(): void
     {
-        $connectionParams = [
-            'path' => dirname(__DIR__, 2) . '/db/bs_db.sqlite3',
-            'driver' => 'pdo_sqlite'
-        ];
+        $connectionParams = Configuration::getDBConfig(2);
 
         try {
             $conf = new DBAL\Configuration();
@@ -34,10 +32,7 @@ class User
      */
     public static function getUserByBX24id(int $BX24_id): array
     {
-        $connectionParams = [
-            'path' => dirname(__DIR__, 2) . '/db/bs_db.sqlite3',
-            'driver' => 'pdo_sqlite'
-        ];
+        $connectionParams = Configuration::getDBConfig(2);
 
         try {
             $conf = new DBAL\Configuration();
@@ -92,10 +87,7 @@ class User
 
     private static function insertNewUser(string $name, int $bx24id, int $bonuses): void
     {
-        $connectionParams = [
-            'path' => dirname(__DIR__, 2) . '/db/bs_db.sqlite3',
-            'driver' => 'pdo_sqlite'
-        ];
+        $connectionParams = Configuration::getDBConfig(2);
 
         try {
             $conf = new DBAL\Configuration();

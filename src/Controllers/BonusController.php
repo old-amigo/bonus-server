@@ -10,6 +10,7 @@ use Money\Currencies\ISOCurrencies;
 use Money\Formatter\DecimalMoneyFormatter;
 use Money\Parser\DecimalMoneyParser;
 use Rarus\Interns\BonusServer\Model\BonusManager;
+use Rarus\Interns\BonusServer\Model\Configuration;
 use Rarus\Interns\BonusServer\TrainingClassroom\Services\Bitrix24ApiClientServiceBuilder;
 
 
@@ -20,10 +21,7 @@ class BonusController
         $serviceBuilder = Bitrix24ApiClientServiceBuilder::getServiceBuilder();
         $serviceBuilder->getCRMScope()->contact()->update($bx24user_id, ['UF_CRM_B_BALANCE' => $value]);
 
-        $connectionParams = [
-            'path' => dirname(__DIR__, 2) . '/db/bs_db.sqlite3',
-            'driver' => 'pdo_sqlite'
-        ];
+        $connectionParams = Configuration::getDBConfig(2);
 
         try {
             $conf = new DBAL\Configuration();
@@ -36,10 +34,7 @@ class BonusController
 
     private static function getBonuseBalance(int $bx24user_id): string
     {
-        $connectionParams = [
-            'path' => dirname(__DIR__, 2) . '/db/bs_db.sqlite3',
-            'driver' => 'pdo_sqlite'
-        ];
+        $connectionParams = Configuration::getDBConfig(2);
 
         try {
             $conf = new DBAL\Configuration();
@@ -80,7 +75,8 @@ class BonusController
         $dealService = $b24Service->getCRMScope()->deal();
         $deal = $dealService->get($dealBX24id)->deal();
 
-        if($deal->UF_CRM_B_TO_PAY == 0) {
+
+        if($deal->UF_CRM_B_TO_PAY == 0 && $deal->UF_CRM_B_ACCRUED == 0) {
             $decimalParser = new DecimalMoneyParser(new ISOCurrencies());
             $decimalFormatter = new DecimalMoneyFormatter(new ISOCurrencies());
 
@@ -92,7 +88,7 @@ class BonusController
             $dealService->update(
                 $deal->ID,
                 [
-                    'B_ACCRUED' => $decimalFormatter->format($result),
+                    'UF_CRM_B_ACCRUED' => $decimalFormatter->format($bonusesToAccrual),
                 ]
             );
             self::setBonuceBalance($userBX24id, (float)$decimalFormatter->format($result));
