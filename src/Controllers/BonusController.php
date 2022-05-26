@@ -6,20 +6,49 @@ namespace Rarus\Interns\BonusServer\Controllers;
 
 use Bitrix24\SDK\Services\ServiceBuilder;
 use Doctrine\DBAL;
+use Money\Currencies\ISOCurrencies;
+use Money\Formatter\DecimalMoneyFormatter;
+use Money\Parser\DecimalMoneyParser;
+use Rarus\Interns\BonusServer\Model\BonusManager;
 use Rarus\Interns\BonusServer\TrainingClassroom\Services\Bitrix24ApiClientServiceBuilder;
 
 
 class BonusController
 {
-    public static function setBonuceBalance(int $bx24user_id, int $value): void
+    public static function setBonuceBalance(int $bx24user_id, float $value): void
     {
         $serviceBuilder = Bitrix24ApiClientServiceBuilder::getServiceBuilder();
         $serviceBuilder->getCRMScope()->contact()->update($bx24user_id, ['UF_CRM_B_BALANCE' => $value]);
+
+        $connectionParams = [
+            'path' => dirname(__DIR__, 2) . '/db/bs_db.sqlite3',
+            'driver' => 'pdo_sqlite'
+        ];
+
+        try {
+            $conf = new DBAL\Configuration();
+            $conn = DBAL\DriverManager::getConnection($connectionParams, $conf);
+            $conn->update('users', ['bonuses' => $value], ['bx24_id' => $bx24user_id]);
+        } catch (\Throwable $e) {
+            //todo log this
+        }
     }
 
-    private function getBonuceBalance(int $bx24user_id): void
+    private static function getBonuseBalance(int $bx24user_id): string
     {
+        $connectionParams = [
+            'path' => dirname(__DIR__, 2) . '/db/bs_db.sqlite3',
+            'driver' => 'pdo_sqlite'
+        ];
 
+        try {
+            $conf = new DBAL\Configuration();
+            $conn = DBAL\DriverManager::getConnection($connectionParams, $conf);
+            return (string)$conn->fetchOne('SELECT bonuses FROM users WHERE bx24_id=?', [$bx24user_id]);
+        } catch (\Throwable $e) {
+            //todo log this
+            throw $e;
+        }
     }
 
     private function updateBonuceBalance(int $bx24user_id): void
@@ -43,8 +72,30 @@ class BonusController
 
     }
 
-    public function handleDealWon(array $params): void
+    public static function handleDealWon(array $params): void
     {
+        $userBX24id = (int)$params['user_id'];
+        $dealBX24id = (int)$params['deal_id'];
+        $b24Service = Bitrix24ApiClientServiceBuilder::getServiceBuilder();
+        $dealService = $b24Service->getCRMScope()->deal();
+        $deal = $dealService->get($dealBX24id)->deal();
 
+        if($deal->UF_CRM_B_TO_PAY == 0) {
+            $decimalParser = new DecimalMoneyParser(new ISOCurrencies());
+            $decimalFormatter = new DecimalMoneyFormatter(new ISOCurrencies());
+
+            $dealAmount = $decimalParser->parse($deal->OPPORTUNITY, $deal->CURRENCY_ID);
+            $userBonuses = $decimalParser->parse(self::getBonuseBalance($userBX24id), $deal->CURRENCY_ID);
+            $bonusesToAccrual = BonusManager::countBonucesToAccrual($dealAmount);
+
+            $result = $bonusesToAccrual->add($userBonuses);
+            $dealService->update(
+                $deal->ID,
+                [
+                    'B_ACCRUED' => $decimalFormatter->format($result),
+                ]
+            );
+            self::setBonuceBalance($userBX24id, (float)$decimalFormatter->format($result));
+        }
     }
 }
