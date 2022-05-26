@@ -46,11 +46,6 @@ class BonusController
         }
     }
 
-    private function updateBonuceBalance(int $bx24user_id): void
-    {
-
-    }
-
     public static function handleNewDeal(array $params): void
     {
         $userBX24id = (int)$params['user_id'];
@@ -62,9 +57,35 @@ class BonusController
         }
     }
 
-    public function handleBonusPayment(array $params): void
+    public static function handleBonusPayment(array $params): void
     {
+        $userBX24id = (int)$params['user_id'];
+        $dealBX24id = (int)$params['deal_id'];
 
+        $decimalParser = new DecimalMoneyParser(new ISOCurrencies());
+        $decimalFormatter = new DecimalMoneyFormatter(new ISOCurrencies());
+
+        $b24Service = Bitrix24ApiClientServiceBuilder::getServiceBuilder();
+        $dealService = $b24Service->getCRMScope()->deal();
+        $deal = $dealService->get($dealBX24id)->deal();
+
+        $dealAmount = (float)$deal->OPPORTUNITY;
+        $bonusesToPay = (float)$deal->UF_CRM_B_TO_PAY;
+        $userBonuseBalance = (float)self::getBonuseBalance($userBX24id);
+        $rows = $b24Service->getCRMScope()->dealProductRows()->get($dealBX24id)->getProductRows();
+
+        //если бонусов к трате больше порогового значения или больше, чен на счету пользователя, обнулим это поле
+
+        $maxBonusesToPay = $dealAmount * ((float)$_ENV['DEFAULT_BONUS_MAXIMUM_PAYMENT_PERCENTAGE'] / 100);
+        if ($bonusesToPay > $userBonuseBalance || $bonusesToPay > $maxBonusesToPay) {
+            $dealService->update($deal->ID, ['UF_CRM_B_TO_PAY' => '0']);
+        }
+        //иначе - спишем со счета и рассчитаем скидку
+
+
+//        echo "<pre>";
+//        print_r($rows);
+//        echo "</pre>";
     }
 
     public static function handleDealWon(array $params): void
@@ -76,7 +97,7 @@ class BonusController
         $deal = $dealService->get($dealBX24id)->deal();
 
 
-        if($deal->UF_CRM_B_TO_PAY == 0 && $deal->UF_CRM_B_ACCRUED == 0) {
+        if ($deal->UF_CRM_B_TO_PAY == 0 && $deal->UF_CRM_B_ACCRUED == 0) {
             $decimalParser = new DecimalMoneyParser(new ISOCurrencies());
             $decimalFormatter = new DecimalMoneyFormatter(new ISOCurrencies());
 
@@ -85,12 +106,7 @@ class BonusController
             $bonusesToAccrual = BonusManager::countBonucesToAccrual($dealAmount);
 
             $result = $bonusesToAccrual->add($userBonuses);
-            $dealService->update(
-                $deal->ID,
-                [
-                    'UF_CRM_B_ACCRUED' => $decimalFormatter->format($bonusesToAccrual),
-                ]
-            );
+            $dealService->update($deal->ID, ['UF_CRM_B_ACCRUED' => $decimalFormatter->format($bonusesToAccrual),]);
             self::setBonuceBalance($userBX24id, (float)$decimalFormatter->format($result));
         }
     }

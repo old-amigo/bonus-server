@@ -31,8 +31,8 @@ $router->get('/users', User::class . '::getUsers');
 $router->get('/bx24Users', User::class . '::bx24Users');
 $router->post('/handleNewDeal', BonusController::class . '::handleNewDeal');
 $router->post('/handleDealWon', BonusController::class . '::handleDealWon');
+$router->post('/handleBonusPayment', BonusController::class . '::handleBonusPayment');
 
-$hook = getenv('BITRIX24_WEBHOOK');
 
 
 $router->run();
