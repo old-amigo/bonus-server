@@ -7,6 +7,7 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 use Dotenv\Dotenv;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
+use Rarus\Interns\BonusServer\Controllers\BonusController;
 use Rarus\Interns\BonusServer\Controllers\User;
 use Rarus\Interns\BonusServer\Router;
 
@@ -28,8 +29,10 @@ $router->get('/', function () {
 
 $router->get('/users', User::class . '::getUsers');
 $router->get('/bx24Users', User::class . '::bx24Users');
+$router->post('/handleNewDeal', BonusController::class . '::handleNewDeal');
+$router->post('/handleDealWon', BonusController::class . '::handleDealWon');
+$router->post('/handleBonusPayment', BonusController::class . '::handleBonusPayment');
 
-$hook = getenv('BITRIX24_WEBHOOK');
 
 
 $router->run();
