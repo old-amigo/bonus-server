@@ -80,10 +80,10 @@ class User
     {
         $users = self::bx24Users();
         foreach ($users as $user) {
-            if ($user->ID == $userBX24id) {
+            if ((int)$user->ID === $userBX24id) {
                 self::insertNewUser(
                     ($user->NAME . ' ' . $user->SECOND_NAME . ' ' . $user->LAST_NAME),
-                    $user->ID,
+                    $userBX24id,
                     $_ENV['DEFAULT_BONUS_WELCOME_GIFT_AMOUNT']
                 );
             }

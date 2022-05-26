@@ -11,7 +11,7 @@ use Rarus\Interns\BonusServer\TrainingClassroom\Services\Bitrix24ApiClientServic
 
 class BonusController
 {
-    private static function setBonuceBalance(int $bx24user_id, int $value): void
+    public static function setBonuceBalance(int $bx24user_id, int $value): void
     {
         $serviceBuilder = Bitrix24ApiClientServiceBuilder::getServiceBuilder();
         $serviceBuilder->getCRMScope()->contact()->update($bx24user_id, ['UF_CRM_B_BALANCE' => $value]);

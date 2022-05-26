@@ -28,6 +28,7 @@ class UsersSeederFromBX24 extends AbstractSeed
                 'bx24_id' => $user->ID,
                 'bonuses' => $_ENV['DEFAULT_BONUS_WELCOME_GIFT_AMOUNT']
             ];
+            \Rarus\Interns\BonusServer\Controllers\BonusController::setBonuceBalance($user->ID, $_ENV['DEFAULT_BONUS_WELCOME_GIFT_AMOUNT']);
         }
 
         $this->table('users')
