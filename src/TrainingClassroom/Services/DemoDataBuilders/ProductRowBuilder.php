@@ -5,9 +5,43 @@ declare(strict_types=1);
 namespace Rarus\Interns\BonusServer\TrainingClassroom\Services\DemoDataBuilders;
 
 use Bitrix24\SDK\Services\CRM\Product\Result\ProductItemResult;
+use MoneyPHP\Percentage\Percentage;
 
 class ProductRowBuilder
 {
+    private bool $isTaxIncluded;
+    private Percentage $taxRate;
+
+    public function __construct()
+    {
+        $this->isTaxIncluded = false;
+        $this->taxRate = new Percentage('0');
+    }
+
+    /**
+     * @param bool $isTaxIncluded
+     *
+     * @return ProductRowBuilder
+     */
+    public function withIsTaxIncluded(bool $isTaxIncluded): ProductRowBuilder
+    {
+        $this->isTaxIncluded = $isTaxIncluded;
+
+        return $this;
+    }
+
+    /**
+     * @param \MoneyPHP\Percentage\Percentage $taxRate
+     *
+     * @return ProductRowBuilder
+     */
+    public function withTaxRate(Percentage $taxRate): ProductRowBuilder
+    {
+        $this->taxRate = $taxRate;
+
+        return $this;
+    }
+
     /**
      * @param int                                                         $dealId
      * @param \Bitrix24\SDK\Services\CRM\Product\Result\ProductItemResult $product
@@ -35,8 +69,8 @@ class ProductRowBuilder
             'PRODUCT_ID'            => $product->ID,
             'PRODUCT_NAME'          => $product->NAME,
             'QUANTITY'              => $quantity,
-            'TAX_INCLUDED'          => 'Y',
-            'TAX_RATE'              => '20',
+            'TAX_INCLUDED'          => $this->isTaxIncluded ? 'Y' : 'N',
+            'TAX_RATE'              => (string)$this->taxRate->toRatio() * 10,
         ];
     }
 }

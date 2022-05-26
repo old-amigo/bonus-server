@@ -15,6 +15,7 @@ class ProductBuilder
     private Money $price;
     private string $xmlId;
     private string $name;
+    private bool $isVatIncluded;
 
     /**
      * @param \Money\Currency $currency
@@ -25,6 +26,8 @@ class ProductBuilder
     {
         $this->price = new Money(random_int(20000, 250000), $currency);
         $this->xmlId = Uuid::uuid4()->toString();
+        $this->name = sprintf('product name - %s', time());
+        $this->isVatIncluded = false;
     }
 
     /**
@@ -47,6 +50,18 @@ class ProductBuilder
     public function withXmlId(string $xmlId): ProductBuilder
     {
         $this->xmlId = $xmlId;
+
+        return $this;
+    }
+
+    /**
+     * @param bool $isVatIncluded
+     *
+     * @return ProductBuilder
+     */
+    public function withIsVatIncluded(bool $isVatIncluded): ProductBuilder
+    {
+        $this->isVatIncluded = $isVatIncluded;
 
         return $this;
     }
@@ -83,6 +98,7 @@ class ProductBuilder
             'SECTION_ID'      => null,
             'SORT'            => null,
             'VAT_ID'          => null,
+            'VAT_INCLUDED'    => $this->isVatIncluded ? 'Y' : 'N',
         ];
     }
 }

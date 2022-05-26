@@ -56,7 +56,7 @@ class Bitrix24PortalConfigurationTest extends TestCase
      */
     public function testBitrix24CrmHasProducts(): void
     {
-        $this->assertGreaterThan(
+        $this->assertGreaterThanOrEqual(
             1,
             $this->serviceBuilder->getCRMScope()->product()->countByFilter(),
             'В Битрикс24 нет товаров, требуется их добавить в товарный каталог, выполните в консоли команду «php bin/console  generate:products»'
